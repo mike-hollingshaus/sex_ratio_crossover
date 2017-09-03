@@ -10,8 +10,10 @@ deLevel <- function(v){
   levels(v)[v]
 }
 
+ccodes <- read.csv('./HMD Country Codes.csv', stringsAsFactors = FALSE)
 
 
+# Get the 
 hmd.periodLifetab <- function(country, sex=c('m','f','b'), username, password, label = country) 
 {
   if (!(sex %in% c('m','f','b'))){
@@ -45,9 +47,12 @@ hmd.loginFile <- 'C:/Users/u0214256/Documents/Keys/human_mortality_database.csv'
 hmd.loginData <- trimws(as.character(read.csv(hmd.loginFile, stringsAsFactors = FALSE)[1,]))
 hmd.username <- hmd.loginData[1]
 hmd.password <- hmd.loginData[2]
-countriesToExamine <- c('USA', 'SWE', 'AUS', 'CAN', 'GBR_NP')
-
-perlts <- pblapply(countriesToExamine, hmd.countryPeriodLifeTabs, username=hmd.username, password=hmd.password)
+# countriesToExamine <- c('USA', 'SWE', 'AUS', 'CAN', 'GBR_NP')
+countriesToExamine <- ccodes$code
+perlts <- pblapply(countriesToExamine, function(x0) {
+  print(x0)
+  hmd.countryPeriodLifeTabs(x0, username=hmd.username, password=hmd.password)
+})
 names(perlts) <- countriesToExamine
 
 srAnalyses <- function(ltdat){
@@ -104,11 +109,12 @@ srAnalyses <- function(ltdat){
   # key model info
   fitParms$expInt <- parms[1]; fitParms$expBeta <- parms[2]; fitParms$expR2=regSum$r.squared;
   rownames(fitParms) <- NULL
+  cName <- ccodes$country[ccodes$code==country]
   
   # Make a plot
-  basePlot <- ggplot(allCrossPoints, aes(x=year, y=ageCross)) + geom_point() + labs(title=paste(country, 'Sex Ratio Crossover by Year\nPeriod Life Tables'))
-  linPlot <- ggplot(crossAgex, aes(x=year, y=ageCross)) + geom_point() + geom_line(data=crossAgex, aes(x=year, y=linFit)) + labs(title=paste(country, 'Sex Ratio Crossover Linear Fit\nPeriod Life Tables'))
-  expPlot <- ggplot(crossAgex, aes(x=year, y=ageCross)) + geom_point() + geom_line(data=crossAgex, aes(x=year, y=expFit)) + labs(title=paste(country, 'Sex Ratio Crossover Exponential Fit\nPeriod Life Tables'))
+  basePlot <- ggplot(allCrossPoints, aes(x=year, y=ageCross)) + geom_point() + labs(title=paste('Sex Ratio Crossover by Year Period Life Tables\n',cName))
+  linPlot  <- ggplot(crossAgex, aes(x=year, y=ageCross)) + geom_point() + geom_line(data=crossAgex, aes(x=year, y=linFit)) + labs(title=paste('Sex Ratio Crossover Linear Fit Period Life Tables\n',cName))
+  expPlot  <- ggplot(crossAgex, aes(x=year, y=ageCross)) + geom_point() + geom_line(data=crossAgex, aes(x=year, y=expFit)) + labs(title=paste('Sex Ratio Crossover Exponential Fit Period Life Tables\n',cName))
   
   # Return objects of interest
   obj <- list(country, SSR, crossAgex, fitParms, linReg, expReg, basePlot, linPlot, expPlot)
@@ -117,5 +123,6 @@ srAnalyses <- function(ltdat){
 }
 
 countryFits1 <- lapply(perlts, srAnalyses)
+lapply(countryFits1, function(x0) x0$basePlot)
 lapply(countryFits1, function(x0) x0$linPlot)
 lapply(countryFits1, function(x0) x0$expPlot)

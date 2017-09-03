@@ -1,3 +1,4 @@
+country,code
 Australia AUS,AUS
 Austria AUT,AUT
 Belarus BLR,BLR
@@ -12,8 +13,8 @@ Finland FIN,FIN
 France total population FRATNP,FRATNP
 France civilian population FRACNP,FRACNP
 Germany total population DEUTNP,DEUTNP
-West Germany DEUTFRG,DEUTFRG
-East Germany DEUTGDR,DEUTGDR
+West Germany DEUTFRG,DEUTW
+East Germany DEUTGDR,DEUTE
 Greece GRC,GRC
 Hungary HUN,HUN
 Iceland ISL,ISL
@@ -25,7 +26,6 @@ Latvia LVA,LVA
 Lithuania LTU,LTU
 Luxembourg LUX,LUX
 Netherlands NLD,NLD
-New Zealand,Zealand
 NZ total population NZL_NP,NZL_NP
 NZ Maori NZL_MA,NZL_MA
 NZ non-Maori NZL_NM,NZL_NM
