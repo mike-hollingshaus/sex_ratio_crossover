@@ -1,0 +1,56 @@
+---
+title: "Sex Ratio Crossovers"
+author: "Mike Hollingshaus"
+date: "August 21, 2017"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE, echo=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(ggplot2)
+library(demography)
+rm(list=ls())
+cat('\014')
+```
+
+```{r helperFunctions}
+deLevel <- function(v){
+  levels(v)[v]
+}
+```
+
+```{r startingParameters, echo=FALSE}
+  hmd.loginFile <- 'C:/Users/u0214256/Documents/Keys/human_mortality_database.csv'  
+  hmd.loginData <- trimws(as.character(read.csv(hmd.loginFile, stringsAsFactors = FALSE)[1,]))
+  hmd.username <- hmd.loginData[1]
+  hmd.password <- hmd.loginData[2]
+  countriesToExamine <- c('USA', 'SWE', 'AUS', 'CAN', 'GBR_NP')
+```
+
+
+## Abstract
+
+Foo bar
+
+## Analysis
+
+``` {r analysis1}
+d0 <- hmd.mx('USA', hmd.username, hmd.password)
+female <- as.data.frame(d0$rate$female)
+female$sex <- 'F'
+female$agex <- d0$age
+
+male <- as.data.frame(d0$rate$male)
+male$sex <- 'M'
+male$agex <- d0$age
+
+both <- rbind(female, male)
+
+both.long <- melt(both, id=c('sex','agex'))
+both.long$year <- as.integer(deLevel(both.long$variable))
+
+```
+
+
