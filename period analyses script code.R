@@ -67,8 +67,25 @@ srAnalyses <- function(ltdat){
   d$age <- as.numeric(deLevel(d$Age))
   # Keep only up through age 100
   d1 <- d[!(is.na(d$age)) & d$age <= 100,]
+  origDat <- d1
+  
   country <- d1$country[1]
+  cName <- ccodes$country[ccodes$code==country]
   print(paste('\n--',country,'--\n'))
+  
+
+  lowerBoundYear <- 1920
+  # Plots of all the sex ratio curves.
+  temp <- d1[d1$Year >= lowerBoundYear,]
+  temp$year <- as.character(temp$Year)
+  
+  
+  summaryCurve <- ggplot(temp[temp$Year %% 20 == 10 | temp$Year == 2000,], aes(x=age, y=lx.sr, colour=year)) + geom_line() + geom_hline(yintercept = 1, linetype=3) + labs(title=paste('Sex Ratio Curve\n',cName, 'Select Years'))
+  
+  allCurves <- lapply(split(temp, temp$Year), function(x0){
+    ggplot(x0, aes(x=age, y=lx.sr)) + geom_line() + geom_hline(yintercept = 1, linetype=3) + labs(title=paste('Sex Ratio Curve\n',cName, x0$Year[1])) 
+  })
+  
   
   crossAgex <- as.data.frame(rbindlist(lapply(split(d1, d1$Year), function(x0){
     # Order the data points by age
@@ -83,7 +100,7 @@ srAnalyses <- function(ltdat){
   crossAgex$country <- country
   allCrossPoints <- crossAgex
   
-  crossAgex <- allCrossPoints[allCrossPoints$year >= 1950,]
+  crossAgex <- allCrossPoints[allCrossPoints$year >= lowerBoundYear,]
   
   # Fit a linear model
   ageReg <- lm(ageCross ~ year, data=crossAgex)
@@ -109,7 +126,7 @@ srAnalyses <- function(ltdat){
   # key model info
   fitParms$expInt <- parms[1]; fitParms$expBeta <- parms[2]; fitParms$expR2=regSum$r.squared;
   rownames(fitParms) <- NULL
-  cName <- ccodes$country[ccodes$code==country]
+
   
   # Make a plot
   basePlot <- ggplot(allCrossPoints, aes(x=year, y=ageCross)) + geom_point() + labs(title=paste('Sex Ratio Crossover by Year Period Life Tables\n',cName))
@@ -117,12 +134,13 @@ srAnalyses <- function(ltdat){
   expPlot  <- ggplot(crossAgex, aes(x=year, y=ageCross)) + geom_point() + geom_line(data=crossAgex, aes(x=year, y=expFit)) + labs(title=paste('Sex Ratio Crossover Exponential Fit Period Life Tables\n',cName))
   
   # Return objects of interest
-  obj <- list(country, SSR, crossAgex, fitParms, linReg, expReg, basePlot, linPlot, expPlot)
-  names(obj) <- c('country', 'SSR', 'crossAgex', 'fitParms', 'linReg', 'expReg', 'basePlot', 'linPlot', 'expPlot')
+  obj <- list(country, SSR, crossAgex, fitParms, linReg, expReg, basePlot, linPlot, expPlot, allCurves, summaryCurve, origDat)
+  names(obj) <- c('country', 'SSR', 'crossAgex', 'fitParms', 'linReg', 'expReg', 'basePlot', 'linPlot', 'expPlot', 'allCurves', 'summaryCurve', 'origDat')
   obj
 }
 
 countryFits1 <- lapply(perlts, srAnalyses)
+
 lapply(countryFits1, function(x0) x0$basePlot)
 lapply(countryFits1, function(x0) x0$linPlot)
 lapply(countryFits1, function(x0) x0$expPlot)
