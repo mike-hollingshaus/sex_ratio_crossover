@@ -8,6 +8,7 @@ library(pbapply)
 rm(list=ls())
 # A prefrence function to clear the console
 cls <- function() cat('\014')
+cls()
 
 # A file on the local harddrive for reading in the author's username/password for HMD. In practice, comment these out, and hardcode the user's username and password with literal strings. 
 hmd.loginFile <- 'C:/Users/u0214256/Documents/Keys/human_mortality_database.csv'  
@@ -60,6 +61,7 @@ hmd.countryPeriodLifeTabs <- function(country,  username, password){
   rbind(f,m,b)
 }
 
+print('Reading Period Data from HMD')
 # Read in the country-specific period life tables for the prespecified countries in the "countriesToExamine" variable.
 perlts <- pblapply(countriesToExamine, function(x0) {
   print(x0)
