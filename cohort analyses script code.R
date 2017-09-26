@@ -2,7 +2,7 @@
 # Demographer
 # Kem C. Gardner Policy Institute
 # University of Utah
-# Purpose: Period Sex Ratio Crossover Ages throughout History
+# Purpose: Cohort Sex Ratio Crossover Ages throughout History
 
 library(data.table)
 library(ggplot2)

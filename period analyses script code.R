@@ -85,7 +85,7 @@ names(perlts) <- countriesToExamine
 # This function does the first sex ratio analyses for a given set of year-specific life-table data, formatted like the HMD lifetables read in from the hmd.periodLifeTab function. (Note, this requires a country name field). The lowerBound parameter determines the first year for which the regression analyses begin.
 # SSR is secondary sex ratio (ratio of males to females at birth. Default is 1.05.
 # Output includes: STILL WORKING ON THIS
-srAnalyses <- function(ltdat, lowerBoundYear=1920, SSR=1.05){
+srAnalyses <- function(ltdat, lowerBoundYear=1960, SSR=1.05){
   # Keep only the country, Year, Age, and lx variables
   colsToKeep <- c('country','Year','Age','lx')
   # Get the male and female data into a wideform (this includes separating datasets and then merging)
@@ -181,20 +181,25 @@ srAnalyses <- function(ltdat, lowerBoundYear=1920, SSR=1.05){
 countryFits1 <- lapply(perlts, srAnalyses)
 
 # Write 
-writeToPDF <- function(thePlot, prefix){
-  country <- thePlot$data$country[1]
-  fileName <- paste('./Plots/', prefix, '_', country, '.pdf', sep='')
-  pdf(fileName)
-  print(thePlot)
-  dev.off()
-}
+# writeToPDF <- function(thePlot, prefix){
+#   country <- thePlot$data$country[1]
+#   fileName <- paste('./Plots/', prefix, '_', country, '.pdf', sep='')
+#   pdf(fileName)
+#   print(thePlot)
+#   dev.off()
+# }
 
 # Plot them all on the same chart.
 fullCrossDat <- rBindThisList(lapply(countryFits1, function(x0) x0$allCrossPoints))
 
-pdf('./Plots/PeriodSRXSelect7.pdf')
-print(ggplot(fullCrossDat[fullCrossDat$year >= 1900,], aes(x=year, y=ageCross, colour=country)) + geom_point() + labs(title='Sex Ratio Crossover for Select Countries\nfrom Period Life Tables') + ylab(label = 'Sex Ratio Crossover'))
-dev.off()
+# pdf('./Plots/PeriodSRXSelect7.pdf')
+# print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_point() + labs(title='Sex Ratio Crossover for Select Countries\nfrom Period Life Tables') + ylab(label = 'Sex Ratio Crossover'))
+# No-title version
+print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') )  
+#dev.off()
+
+countryFits1$USA$allCurves$`2010` + ylab(label='Sex Ratio')
+
 
 
 lapply(countryFits1, function(x0) writeToPDF(x0$basePlot, 'basecrosses'))

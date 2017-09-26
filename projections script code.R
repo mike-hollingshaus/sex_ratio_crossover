@@ -72,8 +72,9 @@ allCBCross <- rBindThisList(lapply(split(cbForm, cbForm$year), crossAgexF))
 
 # Plot the Sex Ratio Curves and Crosses
 ggplot(cb.srd[cb.srd$year %in% selectYearsToPlot,], aes(x=age, y=SR, colour=Year)) + geom_line() + geom_hline(yintercept=1, linetype=3) + labs(title='Projected US Sex Rato Curves\nDerived from US Census Bureau 2014 Projections')
-ggplot(allCBCross, aes(x=year, y=SRX)) + geom_point() + scale_y_continuous(limits=c(0,70)) + labs(title='Projected U.S. Sex Ratio Crossover Ages\nDerived from Census Bureau 2014 Projections')
-
+# ggplot(allCBCross, aes(x=year, y=SRX)) + geom_point() + scale_y_continuous(limits=c(0,70)) + labs(title='Projected U.S. Sex Ratio Crossover Ages\nDerived from Census Bureau 2014 Projections')
+# Without title
+ggplot(allCBCross, aes(x=year, y=SRX)) + geom_point() + scale_y_continuous(limits=c(0,70))
 # Print the actual data
 print(allCBCross)
 # Goes from age 36 in 2014 to age 62 in 2060
