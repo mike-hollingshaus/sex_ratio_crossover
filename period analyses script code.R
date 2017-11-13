@@ -34,6 +34,7 @@ ccodes <- read.csv('./HMD Country Codes.csv', stringsAsFactors = FALSE)
 
 # Rather than examine all countries, choose only select examples from around the world
 countriesToExamine <- c('USA', 'SWE', 'AUS', 'JPN', 'RUS', 'ITA','CHL')
+
 # This line of code will examine all hmd countries: countriesToExamine <- ccodes$code
 
 # A handy function to get factor "levels" into strings.
@@ -73,30 +74,76 @@ hmd.countryPeriodLifeTabs <- function(country,  username, password){
   rbind(f,m,b)
 }
 
+# Get the secondary sex ratios from births. Also, include the births (by sex) in the output
+hmd.countrySSRs <- function(country,  username, password){
+  taburl <- 'Births.txt'  # paste(sex, "ltper_1x1.txt", sep='')
+  path <- paste("http://www.mortality.org/hmd/", country, "/STATS/", 
+                taburl, sep = "")
+  userpwd <- paste(username, ":", password, sep = "")
+  txt <- RCurl::getURL(path, userpwd = userpwd)
+  con <- textConnection(txt)
+  births <- try(utils::read.table(con, skip = 2, header = TRUE, 
+                                   na.strings = "."), TRUE)
+  close(con)
+  if (class(births) == "try-error") 
+    stop("Connection error at www.mortality.org. Please check username, password and country label.")
+  births$SSR <- births$Male/births$Female
+  births$country <- country
+  births
+}
+
 print('Reading Period Data from HMD')
 # Read in the country-specific period life tables for the prespecified countries in the "countriesToExamine" variable.
 perlts <- pblapply(countriesToExamine, function(x0) {
   print(x0)
-  hmd.countryPeriodLifeTabs(x0, username=hmd.username, password=hmd.password)
+  lifetabs <- hmd.countryPeriodLifeTabs(x0, username=hmd.username, password=hmd.password)
+  SSRs <- hmd.countrySSRs(x0, username=hmd.username, password=hmd.password)
+  obj <- list(lifetabs, SSRs)
+  names(obj) <- c('lifetabs', 'SSRs')
+  obj
 })
 names(perlts) <- countriesToExamine
 
-
-# This function does the first sex ratio analyses for a given set of year-specific life-table data, formatted like the HMD lifetables read in from the hmd.periodLifeTab function. (Note, this requires a country name field). The lowerBound parameter determines the first year for which the regression analyses begin.
-# SSR is secondary sex ratio (ratio of males to females at birth. Default is 1.05.
+# This function does the first sex ratio analyses for a given set of year-specific life-table data, formatted like the HMD lifetables read in from the hmd.periodLifeTab function. (Note, this requires a country name field). It must be provided as the first item of a list in "datList". 
+#  Either datList must have a second item that is a dataset of SSRs, with columns including 'Year' and 'SSR'; or, an override constant SSR must be provided (other than the default of NULL).
+# The lowerBound parameter determines the first year for which the regression analyses begin.
+# The first 
 # Output includes: STILL WORKING ON THIS
-srAnalyses <- function(ltdat, lowerBoundYear=1960, SSR=1.05){
+srAnalyses <- function(datList, lowerBoundYear=1960, SSR=NA){
+  if (class(datList) != 'list'){
+    stop('datList must have class list')
+  }
+  
   # Keep only the country, Year, Age, and lx variables
   colsToKeep <- c('country','Year','Age','lx')
+  
+  
+  ltdat <- datList[[1]]
+  ssrDat <- NULL
+  if (length(datList) > 1){
+    ssrDat <- datList[[2]]  
+  }
+  
+    
   # Get the male and female data into a wideform (this includes separating datasets and then merging)
   f <- ltdat[ltdat$sex=='f', colsToKeep]
   colnames(f)[4] <- 'lx.f'
   m <- ltdat[ltdat$sex=='m', colsToKeep]
   colnames(m)[4] <- 'lx.m'
-  d <- merge(f, m)
+  d0 <- merge(f, m)
+  
+  # For each year in which a lifetable is available
+  ltYears <- unique(ltdat$Year)
+  
+  if (!is.na(SSR)){
+    ssrDat <- data.frame(Year=ltYears, SSR)
+  }
+  
+  # Merge in the secondary sex ratio for each row
+  d <- merge(d0, ssrDat[,c('Year','SSR')], all.x=TRUE)
   
   # Calculate the sex ratio for each row (i.e., by year and age)
-  d$lx.sr <- SSR * d$lx.m / d$lx.f
+  d$lx.sr <- d$SSR * d$lx.m / d$lx.f
   # Get "Age" into numeric format
   d$age <- as.numeric(deLevel(d$Age))
   # Keep only up through age 100
@@ -198,9 +245,16 @@ fullCrossDat <- rBindThisList(lapply(countryFits1, function(x0) x0$allCrossPoint
 print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') )  
 #dev.off()
 
+# Plot just the SSRs for each country, since 1900
+allSSRs <- rBindThisList(lapply(perlts, function(x0) x0$SSRs))
+print(ggplot(allSSRs[allSSRs$Year >= 1900,], aes(x=Year, y=SSR, colour=country)) + geom_jitter() + geom_hline(yintercept=mean(allSSRs$SSR, na.rm=TRUE), linetype=3) + xlab(label='Year') + ylab(label = 'Secondary Sex Ratio') + labs(title='Secondary Sex Ratios by Country'))  
+
+# Each country individually
+lapply(split(allSSRs, allSSRs$country), function(x0){
+  ggplot(x0[x0$Year >= 1900,], aes(x=Year, y=SSR)) + geom_point() + geom_hline(yintercept=1.05, linetype=3) + xlab(label='Year') + ylab(label = 'Secondary Sex Ratio') + labs(title=paste(x0$country[1], 'Secondary Sex Ratios, with Mean')) + scale_y_continuous(limits=c(1.0,1.1)) # + geom_hline(yintercept=mean(x0$SSR, na.rm=TRUE), linetype=3)   
+})
+
 countryFits1$USA$allCurves$`2010` + ylab(label='Sex Ratio')
-
-
 
 lapply(countryFits1, function(x0) writeToPDF(x0$basePlot, 'basecrosses'))
 # lapply(countryFits1, function(x0) x0$linPlot)

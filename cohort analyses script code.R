@@ -59,7 +59,8 @@ hmd.cohortLifetab <- function(country, sex=c('m','f','b'), username, password, l
                               na.strings = "."), TRUE)
   close(con)
   # If the cohort life table is not available. Do something else.
-  if (class(lifetab) == "try-error") 
+  if (class(lifetab) == "try-error")
+    
     stop("Connection error at www.mortality.org. Please check username, password and country label.")
   lifetab$country <- country
   lifetab$sex <- sex
