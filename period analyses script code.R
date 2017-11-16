@@ -66,11 +66,36 @@ hmd.periodLifetab <- function(country, sex=c('m','f','b'), username, password, l
   lifetab
 }
 
+# Get the single-year period life tables from HMD for a given sex (male, female, or both). Can be one, two, or all three. Requires HMD username and password
+# Throws an error if there is a problem reading file (example, username or password invalid, bad country name, wrong input for sex specifications, changed file format, etc...)
+hmd.periodLifetab <- function(country, sex=c('m','f','b'), username, password, label = country) 
+{
+  if (!(sex %in% c('m','f','b'))){
+    stop('sex must be m, f, or b')
+  }
+  
+  taburl <- paste(sex, "ltper_1x1.txt", sep='')
+  path <- paste("http://www.mortality.org/hmd/", country, "/STATS/", 
+                taburl, sep = "")
+  userpwd <- paste(username, ":", password, sep = "")
+  txt <- RCurl::getURL(path, userpwd = userpwd)
+  con <- textConnection(txt)
+  lifetab <- try(utils::read.table(con, skip = 2, header = TRUE, 
+                                   na.strings = "."), TRUE)
+  close(con)
+  if (class(lifetab) == "try-error") 
+    stop("Connection error at www.mortality.org. Please check username, password and country label.")
+  lifetab$country <- country
+  lifetab$sex <- sex
+  lifetab
+}
+
+
 # Get the sigle-year period life tables for a given country. Calls the hmd.periodLifeTab function, and might throw associated errors.
-hmd.countryPeriodLifeTabs <- function(country,  username, password){
-  f <- hmd.periodLifetab(country, 'f', username, password)
-  m <- hmd.periodLifetab(country, 'm', username, password)
-  b <- hmd.periodLifetab(country, 'b', username, password)
+hmd.countryLifeTabs <- function(country,  username, password, ltType){
+  f <- hmd.lifetab(country, 'f', username, password, ltType)
+  m <- hmd.lifetab(country, 'm', username, password, ltType)
+  b <- hmd.lifetab(country, 'b', username, password, ltType)
   rbind(f,m,b)
 }
 
@@ -171,12 +196,10 @@ srAnalyses <- function(datList, lowerBoundYear=1960, SSR=NA){
   crossAgex <- as.data.frame(rbindlist(lapply(split(d1, d1$Year), function(x0){
     # Order the data points by age
     x <- x0[order(x0$age),]
-    # Find every place the sex ratio is greater than 1, and store it as a 1.
-    greaterOne <- (x$lx.sr > 1)*1
-    # The sum of these 1's gives the number of age groups that are under age 1. Since they are single year of age data, and 
-    # the first age groups is 0, just subtract 1 from the sum to get the necessary crossing age.
-    ageCross <- sum(greaterOne)-1
-    return(data.frame(year=x$Year[1], ageCross=ageCross))
+    # Find every place the sex ratio curve is less than 1.
+    srcNotGreaterOne <- (x$lx.sr < 1)
+    # Among the ages where this is happening, the minimum age - 1 is the sex ratio crossover age
+    return(data.frame(year=x$Year[1], ageCross=min(x$age[srcNotGreaterOne], na.rm=TRUE)-1))
   })))
   crossAgex$country <- country
   allCrossPoints <- crossAgex
@@ -189,10 +212,10 @@ srAnalyses <- function(datList, lowerBoundYear=1960, SSR=NA){
   regSum <- summary(ageReg)
   linReg <- ageReg
   parms <- ageReg$coefficients
-  
+
   # Place the fitted values in the dataset
   crossAgex$linFit <- parms[1] + crossAgex$year*parms[2]
-  
+
   # A datset for storing key model info
   fitParms <- data.frame(country, linInt=parms[1], linBeta=parms[2], linR2=regSum$r.squared, stringsAsFactors = FALSE)
   
@@ -217,7 +240,7 @@ srAnalyses <- function(datList, lowerBoundYear=1960, SSR=NA){
   # expPlot  <- ggplot(crossAgex, aes(x=year, y=ageCross)) + geom_point() + geom_line(data=crossAgex, aes(x=year, y=expFit)) + labs(title=paste('Sex Ratio Crossover Exponential Fit Period Life Tables\n',cName))
   
   # Return objects of interest
-  obj <- list(country, SSR, crossAgex, fitParms, linReg, basePlot, linPlot, allCurves, summaryCurve, origDat, allCrossPoints)
+  obj <- list(country, SSR, crossAgex, fitParms, linReg, basePlot, linPlot, allCurves, summaryCurve, origDat[order(origDat$Year, origDat$age),], allCrossPoints)
   names(obj) <- c('country', 'SSR', 'crossAgex', 'fitParms', 'linReg', 'basePlot', 'linPlot', 'allCurves', 'summaryCurve', 'origDat', 'allCrossPoints')
   ### Again, comment out the version that fits the exponential model
   # obj <- list(country, SSR, crossAgex, fitParms, linReg, expReg, basePlot, linPlot, expPlot, allCurves, summaryCurve, origDat)
@@ -227,17 +250,179 @@ srAnalyses <- function(datList, lowerBoundYear=1960, SSR=NA){
 
 countryFits1 <- lapply(perlts, srAnalyses)
 
-# Write 
-# writeToPDF <- function(thePlot, prefix){
-#   country <- thePlot$data$country[1]
-#   fileName <- paste('./Plots/', prefix, '_', country, '.pdf', sep='')
-#   pdf(fileName)
-#   print(thePlot)
-#   dev.off()
-# }
 
 # Plot them all on the same chart.
 fullCrossDat <- rBindThisList(lapply(countryFits1, function(x0) x0$allCrossPoints))
+# 
+# # pdf('./Plots/PeriodSRXSelect7.pdf')
+# # print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_point() + labs(title='Sex Ratio Crossover for Select Countries\nfrom Period Life Tables') + ylab(label = 'Sex Ratio Crossover'))
+# # No-title version
+# print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') )
+# #dev.off()
+# 
+# # Plot just the SSRs for each country, since 1900
+# allSSRs <- rBindThisList(lapply(perlts, function(x0) x0$SSRs))
+# print(ggplot(allSSRs[allSSRs$Year >= 1900,], aes(x=Year, y=SSR, colour=country)) + geom_jitter() + geom_hline(yintercept=mean(allSSRs$SSR, na.rm=TRUE), linetype=3) + xlab(label='Year') + ylab(label = 'Secondary Sex Ratio') + labs(title='Secondary Sex Ratios by Country'))
+# 
+# # Each country individually
+# lapply(split(allSSRs, allSSRs$country), function(x0){
+#   ggplot(x0[x0$Year >= 1900,], aes(x=Year, y=SSR)) + geom_point() + geom_hline(yintercept=1.05, linetype=3) + xlab(label='Year') + ylab(label = 'Secondary Sex Ratio') + labs(title=paste(x0$country[1], 'Secondary Sex Ratios, with Mean')) + scale_y_continuous(limits=c(1.0,1.1)) # + geom_hline(yintercept=mean(x0$SSR, na.rm=TRUE), linetype=3)
+# })
+# 
+# countryFits1$USA$allCurves$`2010` + ylab(label='Sex Ratio')
+
+# Try it using the method of log(SSR) = area under the curve from age 0 to age x of the excess male mortality.
+# Take the male minus the female mx. Get the cumulative sum. Find the minimum age x at which this is less than the natural log of the SSR.
+
+srAnalysesMxMethod <- function(datList, lowerBoundYear=1960, SSR=NA){
+  if (class(datList) != 'list'){
+    stop('datList must have class list')
+  }
+  
+  # Keep only the country, Year, Age, and mx variables
+  colsToKeep <- c('country','Year','Age','mx')
+  
+  
+  ltdat <- datList[[1]]
+  ssrDat <- NULL
+  if (length(datList) > 1){
+    ssrDat <- datList[[2]]  
+  }
+  
+  
+  # Get the male and female data into a wideform (this includes separating datasets and then merging)
+  f <- ltdat[ltdat$sex=='f', colsToKeep]
+  colnames(f)[4] <- 'mx.f'
+  m <- ltdat[ltdat$sex=='m', colsToKeep]
+  colnames(m)[4] <- 'mx.m'
+  d0 <- merge(f, m)
+  
+  # For each year in which a lifetable is available
+  ltYears <- unique(ltdat$Year)
+  
+  if (!is.na(SSR)){
+    ssrDat <- data.frame(Year=ltYears, SSR)
+  }
+  
+  # Merge in the secondary sex ratio for each row
+  d <- merge(d0, ssrDat[,c('Year','SSR')], all.x=TRUE)
+
+  # Calculate the excess male mortality (DMR) for each age x
+  d$DMR <- d$mx.m - d$mx.f
+
+  # Get "Age" into numeric format
+  d$age <- as.numeric(deLevel(d$Age))
+  # Keep only up through age 100
+  # Get the cumulative DMR and log SSR for each year
+  temp <- rBindThisList(lapply(split(d, d$Year), function(x0){
+    x <- x0[order(x0$age),]
+    # The cumulative DMR
+    x$cumDMR <- cumsum(x$DMR)
+    x$lnSSR <- log(x$SSR)
+    x
+  }))
+  
+  d1 <- temp[!(is.na(temp$age)) & temp$age <= 100,]
+  # Store these data as "origDat"
+  origDat <- d1
+  # Get the country and country name
+  country <- d1$country[1]
+  cName <- ccodes$country[ccodes$code==country]
+  print(cName)
+  
+  # Get only the data since the lower bound year, and also get the "Year" variable into character format for plotting
+  temp <- d1[d1$Year >= lowerBoundYear,]
+  temp$year <- as.character(temp$Year)
+  
+  # Plots of select DRM's since the  lower bound year
+  summaryDMR <- ggplot(temp[(temp$Year %% 20 == 10 | temp$Year == 2000) & temp$age <= 70,], aes(x=age, y=DMR, colour=year)) + geom_line() +  labs(title=paste('DMR\n',cName, 'Select Years'))
+  summaryCumDMR <- ggplot(temp[(temp$Year %% 20 == 10 | temp$Year == 2000) & temp$age <= 70,], aes(x=age, y=cumDMR, colour=year)) + geom_line() + geom_hline(yintercept = log(1.05), linetype=3) + labs(title=paste('Cumulative DMR\n',cName, 'Select Years'))
+  
+  # Plots of all individual DMRs
+  allCurves <- lapply(split(temp, temp$Year), function(x0){
+    ggplot(x0, aes(x=age, y=DMR)) + geom_line() + labs(title=paste('DMR\n',cName, x0$Year[1])) 
+  })
+  
+  # For each year, this finds the first (minimum) age at which the cumulative excess male mortality reaches the natural log of the SSR
+  crossAgex <- as.data.frame(rbindlist(lapply(split(d1, d1$Year), function(x0){
+    # Order the data points by age
+    x <- x0[order(x0$age),]
+    # Find every place the cumulative DMR is at least as large as the natural log of the SSR.
+    largerLnSSR <- (x$cumDMR > x$lnSSR)
+    # Crossover is the minimum age - 1
+    return(data.frame(year=x$Year[1], ageCross=min(x$age[largerLnSSR], na.rm = TRUE)-1))
+  })))
+
+  crossAgex$country <- country
+  allCrossPoints <- crossAgex
+  
+  # Get only that subset since the lower bound year
+  crossAgex <- allCrossPoints[allCrossPoints$year >= lowerBoundYear,]
+  
+  # Fit a linear model
+  ageReg <- lm(ageCross ~ year, data=crossAgex)
+  regSum <- summary(ageReg)
+  linReg <- ageReg
+  parms <- ageReg$coefficients
+
+  # Place the fitted values in the dataset
+  crossAgex$linFit <- parms[1] + crossAgex$year*parms[2]
+
+  # A datset for storing key model info
+  fitParms <- data.frame(country, linInt=parms[1], linBeta=parms[2], linR2=regSum$r.squared, stringsAsFactors = FALSE)
+  
+  ### This code tried to fit an exponential model. It did not work as anticipate. A better approach might be to fit a two-piece linear regression model. 
+  # # Fit an exponential model
+  # ageReg <- lm(log(ageCross) ~ year, data=crossAgex)
+  # regSum <- summary(ageReg)
+  # expReg <- ageReg
+  # parms <- ageReg$coefficients
+  # 
+  # # Place the fitted values in the dataset
+  # crossAgex$expFit <- exp(parms[1] + crossAgex$year*parms[2])
+  # 
+  # # key model info
+  # fitParms$expInt <- parms[1]; fitParms$expBeta <- parms[2]; fitParms$expR2=regSum$r.squared;
+  # rownames(fitParms) <- NULL
+  
+  # Plots
+  
+  basePlot <- ggplot(allCrossPoints, aes(x=year, y=ageCross)) + geom_point() + scale_y_continuous(limits=c(0,70)) + labs(title=paste('Sex Ratio Crossover by Year Period Life Tables\n',cName)) # all crossover points for the country
+  linPlot  <- ggplot(crossAgex, aes(x=year, y=ageCross)) + geom_point() + geom_line(data=crossAgex, aes(x=year, y=linFit)) + labs(title=paste('Sex Ratio Crossover Linear Fit Period Life Tables\n',cName)) # Points (with linear fit) since the lowerBound year
+  # expPlot  <- ggplot(crossAgex, aes(x=year, y=ageCross)) + geom_point() + geom_line(data=crossAgex, aes(x=year, y=expFit)) + labs(title=paste('Sex Ratio Crossover Exponential Fit Period Life Tables\n',cName))
+  
+  # Return objects of interest
+  obj <- list(country, SSR, crossAgex, fitParms, linReg, basePlot, linPlot, allCurves, summaryDMR, summaryCumDMR, origDat[order(origDat$Year, origDat$age),], allCrossPoints)
+  names(obj) <- c('country', 'SSR', 'crossAgex', 'fitParms', 'linReg', 'basePlot', 'linPlot', 'allCurves', 'summaryDMR','summaryCumDMR', 'origDat', 'allCrossPoints')
+  ### Again, comment out the version that fits the exponential model
+  # obj <- list(country, SSR, crossAgex, fitParms, linReg, expReg, basePlot, linPlot, expPlot, allCurves, summaryCurve, origDat)
+  # names(obj) <- c('country', 'SSR', 'crossAgex', 'fitParms', 'linReg', 'expReg', 'basePlot', 'linPlot', 'expPlot', 'allCurves', 'summaryCurve', 'origDat')
+  obj
+}
+
+countryFits2 <- lapply(perlts, srAnalysesMxMethod)
+
+
+# Compare the methods
+fullCrossDat2 <- rBindThisList(lapply(countryFits2, function(x0) x0$allCrossPoints))
+
+colnames(fullCrossDat)[2]  <- 'lxCross'
+colnames(fullCrossDat2)[2] <- 'mxCross'
+
+crossDatComp <- merge(fullCrossDat, fullCrossDat2)
+crossDatComp$diffCheck <- crossDatComp$lxCross-crossDatComp$mxCross
+table(crossDatComp$diffCheck)
+keepIt <- crossDatComp[crossDatComp$year >= 1850,]
+table(keepIt$diffCheck)
+test <- keepIt[keepIt$diffCheck == 2 & !is.na(keepIt$diffCheck),]
+# Examine cases where the difference is 2
+temp <- countryFits1$SWE$origDat
+temp2[temp2$Year==1934,]
+temp2 <- countryFits2$SWE$origDat
+temp2[temp2$Year==1902,]
+
+
+# Check the 
 
 # pdf('./Plots/PeriodSRXSelect7.pdf')
 # print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_point() + labs(title='Sex Ratio Crossover for Select Countries\nfrom Period Life Tables') + ylab(label = 'Sex Ratio Crossover'))
@@ -256,5 +441,3 @@ lapply(split(allSSRs, allSSRs$country), function(x0){
 
 countryFits1$USA$allCurves$`2010` + ylab(label='Sex Ratio')
 
-lapply(countryFits1, function(x0) writeToPDF(x0$basePlot, 'basecrosses'))
-# lapply(countryFits1, function(x0) x0$linPlot)
