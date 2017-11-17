@@ -42,36 +42,61 @@ deLevel <- function(v){
   levels(v)[v]
 }
 
+# Get e0 from qx. This is a discrete lifetable function. It might be updated to use a different method as desired.
+#  qx and agex are vectors for the respective lifetable parameters.
+lxFromQx <- function(qx, agex){
+  # Initial fields
+  # The last qx value
+  topI <- length(qx)
+  # Set up life table vectors
+  dx <- lx <- qx*0-9
+  # lx radix of 100000
+  lx[1] <- 100000
+  
+  # The lifetable values, including conventional weights.
+  ### Note this code contains looping in R, and could probably be recoded to improve performances
+  for (i in 1:(topI-1)){
+    dx[i] <- lx[i]*qx[i]
+    lx[i+1] <- lx[i] - dx[i]
+  }
+  lx
+}
+
+
+
+# # Get the single-year period life tables from HMD for a given sex (male, female, or both). Can be one, two, or all three. Requires HMD username and password
+# # Throws an error if there is a problem reading file (example, username or password invalid, bad country name, wrong input for sex specifications, changed file format, etc...)
+# hmd.periodLifetab <- function(country, sex=c('m','f','b'), username, password, label = country) 
+# {
+#   if (!(sex %in% c('m','f','b'))){
+#     stop('sex must be m, f, or b')
+#   }
+#   
+#   taburl <- paste(sex, "ltper_1x1.txt", sep='')
+#   path <- paste("http://www.mortality.org/hmd/", country, "/STATS/", 
+#                taburl, sep = "")
+#   userpwd <- paste(username, ":", password, sep = "")
+#   txt <- RCurl::getURL(path, userpwd = userpwd)
+#   con <- textConnection(txt)
+#   lifetab <- try(utils::read.table(con, skip = 2, header = TRUE, 
+#                               na.strings = "."), TRUE)
+#   close(con)
+#   if (class(lifetab) == "try-error") 
+#     stop("Connection error at www.mortality.org. Please check username, password and country label.")
+#   lifetab$country <- country
+#   lifetab$sex <- sex
+#   lifetab
+# }
+
 # Get the single-year period life tables from HMD for a given sex (male, female, or both). Can be one, two, or all three. Requires HMD username and password
 # Throws an error if there is a problem reading file (example, username or password invalid, bad country name, wrong input for sex specifications, changed file format, etc...)
-hmd.periodLifetab <- function(country, sex=c('m','f','b'), username, password, label = country) 
+hmd.lifetab <- function(country, sex=c('m','f','b'), username, password, ltType='period', label = country) 
 {
   if (!(sex %in% c('m','f','b'))){
     stop('sex must be m, f, or b')
   }
-  
-  taburl <- paste(sex, "ltper_1x1.txt", sep='')
-  path <- paste("http://www.mortality.org/hmd/", country, "/STATS/", 
-               taburl, sep = "")
-  userpwd <- paste(username, ":", password, sep = "")
-  txt <- RCurl::getURL(path, userpwd = userpwd)
-  con <- textConnection(txt)
-  lifetab <- try(utils::read.table(con, skip = 2, header = TRUE, 
-                              na.strings = "."), TRUE)
-  close(con)
-  if (class(lifetab) == "try-error") 
-    stop("Connection error at www.mortality.org. Please check username, password and country label.")
-  lifetab$country <- country
-  lifetab$sex <- sex
-  lifetab
-}
-
-# Get the single-year period life tables from HMD for a given sex (male, female, or both). Can be one, two, or all three. Requires HMD username and password
-# Throws an error if there is a problem reading file (example, username or password invalid, bad country name, wrong input for sex specifications, changed file format, etc...)
-hmd.periodLifetab <- function(country, sex=c('m','f','b'), username, password, label = country) 
-{
-  if (!(sex %in% c('m','f','b'))){
-    stop('sex must be m, f, or b')
+  if (!(ltType %in% c('period','cohort'))){
+    stop('ltType must be period or cohort')
   }
   
   taburl <- paste(sex, "ltper_1x1.txt", sep='')
@@ -87,12 +112,28 @@ hmd.periodLifetab <- function(country, sex=c('m','f','b'), username, password, l
     stop("Connection error at www.mortality.org. Please check username, password and country label.")
   lifetab$country <- country
   lifetab$sex <- sex
-  lifetab
+  if (ltType=='period'){
+    return(lifetab)
+  }
+  # The cohort lifetable
+  # Set it up
+  clt <- lifetab[c(1,2,11,12)]
+  # Get the cohort reference year (which is year plus age x)
+  clt$age <- as.numeric(substr(clt$Age, 1, 3))
+  clt$refYear <- clt$Year + clt$age
+  colnames(lifetab)[1] <- 'refYear'
+  # Merge them together
+  clt2 <- merge(clt, lifetab[,c('refYear','Age','qx')])
+  clt2 <- clt2[order(clt2$sex, clt2$Year, clt2$age),]
+  # Generate the lx values using a conventional method
+  clt2$lx <- lxFromQx(clt2$qx, clt2$age)
+  # Done
+  clt2
 }
 
 
 # Get the sigle-year period life tables for a given country. Calls the hmd.periodLifeTab function, and might throw associated errors.
-hmd.countryLifeTabs <- function(country,  username, password, ltType){
+hmd.countryLifeTabs <- function(country,  username, password, ltType='period'){
   f <- hmd.lifetab(country, 'f', username, password, ltType)
   m <- hmd.lifetab(country, 'm', username, password, ltType)
   b <- hmd.lifetab(country, 'b', username, password, ltType)
@@ -117,17 +158,18 @@ hmd.countrySSRs <- function(country,  username, password){
   births
 }
 
-print('Reading Period Data from HMD')
-# Read in the country-specific period life tables for the prespecified countries in the "countriesToExamine" variable.
-perlts <- pblapply(countriesToExamine, function(x0) {
-  print(x0)
-  lifetabs <- hmd.countryPeriodLifeTabs(x0, username=hmd.username, password=hmd.password)
-  SSRs <- hmd.countrySSRs(x0, username=hmd.username, password=hmd.password)
-  obj <- list(lifetabs, SSRs)
-  names(obj) <- c('lifetabs', 'SSRs')
-  obj
-})
-names(perlts) <- countriesToExamine
+# print('Reading Period Data from HMD')
+# # Read in the country-specific period life tables for the prespecified countries in the "countriesToExamine" variable.
+# perlts <- pblapply(countriesToExamine, function(x0) {
+#   print(x0)
+#   lifetabs <- hmd.countryLifeTabs(x0, username=hmd.username, password=hmd.password)
+#   SSRs <- hmd.countrySSRs(x0, username=hmd.username, password=hmd.password)
+#   obj <- list(lifetabs, SSRs)
+#   names(obj) <- c('lifetabs', 'SSRs')
+#   obj
+# })
+# names(perlts) <- countriesToExamine
+
 
 # This function does the first sex ratio analyses for a given set of year-specific life-table data, formatted like the HMD lifetables read in from the hmd.periodLifeTab function. (Note, this requires a country name field). It must be provided as the first item of a list in "datList". 
 #  Either datList must have a second item that is a dataset of SSRs, with columns including 'Year' and 'SSR'; or, an override constant SSR must be provided (other than the default of NULL).
@@ -248,11 +290,11 @@ srAnalyses <- function(datList, lowerBoundYear=1960, SSR=NA){
   obj
 }
 
-countryFits1 <- lapply(perlts, srAnalyses)
-
-
-# Plot them all on the same chart.
-fullCrossDat <- rBindThisList(lapply(countryFits1, function(x0) x0$allCrossPoints))
+# countryFits1 <- lapply(perlts, srAnalyses)
+# 
+# 
+# # Plot them all on the same chart.
+# fullCrossDat <- rBindThisList(lapply(countryFits1, function(x0) x0$allCrossPoints))
 # 
 # # pdf('./Plots/PeriodSRXSelect7.pdf')
 # # print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_point() + labs(title='Sex Ratio Crossover for Select Countries\nfrom Period Life Tables') + ylab(label = 'Sex Ratio Crossover'))
@@ -400,44 +442,59 @@ srAnalysesMxMethod <- function(datList, lowerBoundYear=1960, SSR=NA){
   obj
 }
 
-countryFits2 <- lapply(perlts, srAnalysesMxMethod)
-
-
-# Compare the methods
-fullCrossDat2 <- rBindThisList(lapply(countryFits2, function(x0) x0$allCrossPoints))
-
-colnames(fullCrossDat)[2]  <- 'lxCross'
-colnames(fullCrossDat2)[2] <- 'mxCross'
-
-crossDatComp <- merge(fullCrossDat, fullCrossDat2)
-crossDatComp$diffCheck <- crossDatComp$lxCross-crossDatComp$mxCross
-table(crossDatComp$diffCheck)
-keepIt <- crossDatComp[crossDatComp$year >= 1850,]
-table(keepIt$diffCheck)
-test <- keepIt[keepIt$diffCheck == 2 & !is.na(keepIt$diffCheck),]
-# Examine cases where the difference is 2
-temp <- countryFits1$SWE$origDat
-temp2[temp2$Year==1934,]
-temp2 <- countryFits2$SWE$origDat
-temp2[temp2$Year==1902,]
+# countryFits2 <- lapply(perlts, srAnalysesMxMethod)
+# 
+# 
+# # Compare the methods
+# fullCrossDat2 <- rBindThisList(lapply(countryFits2, function(x0) x0$allCrossPoints))
+# 
+# colnames(fullCrossDat)[2]  <- 'lxCross'
+# colnames(fullCrossDat2)[2] <- 'mxCross'
+# 
+# crossDatComp <- merge(fullCrossDat, fullCrossDat2)
+# crossDatComp$diffCheck <- crossDatComp$lxCross-crossDatComp$mxCross
+# table(crossDatComp$diffCheck)
+# keepIt <- crossDatComp[crossDatComp$year >= 1850,]
+# table(keepIt$diffCheck)
+# test <- keepIt[keepIt$diffCheck == 2 & !is.na(keepIt$diffCheck),]
+# # Examine cases where the difference is 2
+# temp <- countryFits1$SWE$origDat
+# temp2[temp2$Year==1934,]
+# temp2 <- countryFits2$SWE$origDat
+# temp2[temp2$Year==1902,]
 
 
 # Check the 
 
-# pdf('./Plots/PeriodSRXSelect7.pdf')
-# print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_point() + labs(title='Sex Ratio Crossover for Select Countries\nfrom Period Life Tables') + ylab(label = 'Sex Ratio Crossover'))
-# No-title version
-print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') )  
-#dev.off()
+# # pdf('./Plots/PeriodSRXSelect7.pdf')
+# # print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_point() + labs(title='Sex Ratio Crossover for Select Countries\nfrom Period Life Tables') + ylab(label = 'Sex Ratio Crossover'))
+# # No-title version
+# print(ggplot(fullCrossDat[fullCrossDat$year >= 1970,], aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') )  
+# #dev.off()
+# 
+# # Plot just the SSRs for each country, since 1900
+# allSSRs <- rBindThisList(lapply(perlts, function(x0) x0$SSRs))
+# print(ggplot(allSSRs[allSSRs$Year >= 1900,], aes(x=Year, y=SSR, colour=country)) + geom_jitter() + geom_hline(yintercept=mean(allSSRs$SSR, na.rm=TRUE), linetype=3) + xlab(label='Year') + ylab(label = 'Secondary Sex Ratio') + labs(title='Secondary Sex Ratios by Country'))  
+# 
+# # Each country individually
+# lapply(split(allSSRs, allSSRs$country), function(x0){
+#   ggplot(x0[x0$Year >= 1900,], aes(x=Year, y=SSR)) + geom_point() + geom_hline(yintercept=1.05, linetype=3) + xlab(label='Year') + ylab(label = 'Secondary Sex Ratio') + labs(title=paste(x0$country[1], 'Secondary Sex Ratios, with Mean')) + scale_y_continuous(limits=c(1.0,1.1)) # + geom_hline(yintercept=mean(x0$SSR, na.rm=TRUE), linetype=3)   
+# })
+# 
+# countryFits1$USA$allCurves$`2010` + ylab(label='Sex Ratio')
 
-# Plot just the SSRs for each country, since 1900
-allSSRs <- rBindThisList(lapply(perlts, function(x0) x0$SSRs))
-print(ggplot(allSSRs[allSSRs$Year >= 1900,], aes(x=Year, y=SSR, colour=country)) + geom_jitter() + geom_hline(yintercept=mean(allSSRs$SSR, na.rm=TRUE), linetype=3) + xlab(label='Year') + ylab(label = 'Secondary Sex Ratio') + labs(title='Secondary Sex Ratios by Country'))  
 
-# Each country individually
-lapply(split(allSSRs, allSSRs$country), function(x0){
-  ggplot(x0[x0$Year >= 1900,], aes(x=Year, y=SSR)) + geom_point() + geom_hline(yintercept=1.05, linetype=3) + xlab(label='Year') + ylab(label = 'Secondary Sex Ratio') + labs(title=paste(x0$country[1], 'Secondary Sex Ratios, with Mean')) + scale_y_continuous(limits=c(1.0,1.1)) # + geom_hline(yintercept=mean(x0$SSR, na.rm=TRUE), linetype=3)   
+print('Reading Cohort Data from HMD')
+# Read in the country-specific period life tables for the prespecified countries in the "countriesToExamine" variable.
+cohlts <- pblapply(countriesToExamine, function(x0) {
+  print(x0)
+  lifetabs <- hmd.countryLifeTabs(x0, username=hmd.username, password=hmd.password, ltTyp='cohort')
+  SSRs <- hmd.countrySSRs(x0, username=hmd.username, password=hmd.password)
+  obj <- list(lifetabs, SSRs)
+  names(obj) <- c('lifetabs', 'SSRs')
+  obj
 })
 
-countryFits1$USA$allCurves$`2010` + ylab(label='Sex Ratio')
+names(cohlts) <- countriesToExamine
+cohortFits <- lapply(cohlts, srAnalyses)
 
