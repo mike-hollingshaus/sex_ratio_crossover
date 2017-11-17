@@ -2,7 +2,7 @@
 # Demographer
 # Kem C. Gardner Policy Institute
 # University of Utah
-# Purpose: Period Sex Ratio Crossover Ages throughout History
+# Purpose: Period and Cohort Sex Ratio Crossover Ages throughout History
 
 library(data.table)
 library(ggplot2)
@@ -11,6 +11,7 @@ library(pbapply)
 
 # Empty out memory
 rm(list=ls())
+
 # A prefrence function to clear the console
 cls <- function() cat('\014')
 cls()
@@ -21,6 +22,8 @@ rBindThisList <- function(theList){
 }
 # Set the working directory to the local repository
 setwd('D:/Current Projects/Mortality Sex Ratio Changes/sex_ratio_crossover')
+# Load in the color schemes
+source('color schemes.R')
 
 # A file on the local harddrive for reading in the author's username/password for HMD. In practice, comment these out, and hardcode the user's username and password with literal strings. 
 hmd.loginFile <- 'C:/Users/u0214256/Documents/Keys/human_mortality_database.csv'  
@@ -36,6 +39,21 @@ ccodes <- read.csv('./HMD Country Codes.csv', stringsAsFactors = FALSE)
 
 # Rather than examine all countries, choose only select examples from around the world
 countriesToExamine <- c('USA', 'SWE', 'AUS', 'JPN', 'RUS', 'ITA','CHL')
+
+per_coh_colours <- c(sr_cols$primary$`Masters Black`, sr_cols$primary$Red)
+
+# A Map for country colors
+country_color_map <- 
+  c(
+    sr_cols$tertiary$`Amber Yellow`,
+    sr_cols$tertiary$`Amazon Green`,
+    sr_cols$tertiary$`Azure Blue`,
+    sr_cols$primary$`Masters Black`,
+    sr_cols$secondary$`Wood`,
+    sr_cols$primary$`Granite Grey`,
+    sr_cols$primary$`Red`
+  )
+names(country_color_map) <- countriesToExamine[order(countriesToExamine)]
 
 # This line of code will examine all hmd countries: countriesToExamine <- ccodes$code
 
@@ -564,10 +582,14 @@ cohFullCrossDat <- rBindThisList(lapply(cohFits, function(x0) x0$allCrossPoints)
 perPlotDat <- perFullCrossDat[perFullCrossDat$year >= startYear,]
 cohPlotDat <- cohFullCrossDat[cohFullCrossDat$year >= startYear,]
 
-ggplot(perPlotDat, aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title='Period Sex Ratio Crossovers,\nSelect Countries')
-ggplot(cohPlotDat, aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title='Cohort Sex Ratio Crossovers,\nSelect Countries')
+plotCountries <- function(plotDat){
+  legNames <- unique(perPlotDat$country)[order(unique(perPlotDat$country))]
+  ggplot(plotDat, aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title='Period Sex Ratio Crossovers,\nSelect Countries') + scale_colour_manual(values=country_color_map[legNames])
+}
+plotCountries(perPlotDat)
+plotCountries(cohPlotDat)
 
-plotCountryPeriodCohortComparison <- function(perDat, cohDat, shortCName, plotCName, plotYLim=c(0,100), plotXLim=c(1750,2016)){
+plotCountryPeriodCohortComparison <- function(perDat, cohDat, shortCName, plotCName, plotYLim=c(0,100), plotXLim=c(1850,2016)){
   perDat$type <- 'Period'  
   cohDat$type <- 'Cohort'
   countryPerDat <- perDat[perDat$country==shortCName,]
@@ -575,7 +597,8 @@ plotCountryPeriodCohortComparison <- function(perDat, cohDat, shortCName, plotCN
   
   ggplot(rbind(countryPerDat, countryCohDat), aes(x=year, y=ageCross, colour=type)) + geom_jitter() + # Main Plot
     scale_x_continuous(limits=plotXLim) + scale_y_continuous(limits=plotYLim) + # Scales  
-    xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title=paste('Period vs. Cohort Sex Ratios for Crossovers\n', plotCName, sep='')) # Labels / Title                                                                  
+    xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title=paste('Period vs. Cohort Sex Ratios for Crossovers\n', plotCName, sep='')) + # Labels / Title                                                                  
+    scale_colour_manual(values=per_coh_colours)
 }
 
 plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'ITA', 'Italy')
@@ -592,5 +615,5 @@ plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'RUS', 'Russia')
 # lapply(split(cohFullCrossDat, cohFullCrossDat$country), function(x0){
 #   ggplot(x0, aes(x=year, y=ageCross)) + geom_point() + xlab(label='year') + ylab(label = 'Sex Ratio Crossover') + labs(title=paste(x0$country[1], 'Cohort Sex Ratio Crossover')) 
 # })
-
+ggplot(plotDat, aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title='Period Sex Ratio Crossovers,\nSelect Countries') + scale_colour_manual(values=country_color_map[legNames])
 
