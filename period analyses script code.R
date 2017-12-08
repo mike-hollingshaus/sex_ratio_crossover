@@ -322,26 +322,30 @@ usa2010.2 <- usa2010.2[order(usa2010.2$age),]
 
 # Plot the male vs. female mx
 plotDat <- melt(usa2010.2[,c('age','m.mx','f.mx')], 'age')
-ggplot(plotDat[plotDat$age <= 60 & !is.na(plotDat$age),], aes(x=age, y=value, colour=variable)) + geom_line()
+plotDat2 <- plotDat[plotDat$age <= 60 & !is.na(plotDat$age),]
+plotDat2$variable <- deLevel(plotDat2$variable)
+plotDat2$Sex <- ifelse(plotDat2$variable=='m.mx', 'Male', 'Female')
 
+ggplot(plotDat2, aes(x=age, y=value, colour=Sex)) + geom_line() + ylab(label='Mortality Rate mx') + xlab(label='Age') + scale_colour_manual(values=per_coh_colours)  # +geom_ribbon(data=usa2010.2[usa2010.2$age <= 50 & !is.na(usa2010.2$age),], aes(x=age, ymin=f.mx, ymax=m.mx), inherit.aes=FALSE, fill = "grey70")
 
 # Calculate the excess and cumulative excess male mortality
-usa2010.2$dmr  <- usa2010.2$m.qx-usa2010.2$f.qx
+usa2010.2$dmr  <- usa2010.2$m.mx-usa2010.2$f.mx
 usa2010.2$cdmr <- cumsum(usa2010.2$dmr)
 plotDat <- melt(usa2010.2[usa2010.2$age <= 60,c('age','dmr','cdmr')], 'age')
+plotDat$variable <- deLevel(plotDat$variable)
+plotDat$Variable <- ifelse(plotDat$variable=='dmr', 'DMR', 'Cumulative DMR')
 
 # Get the log secondary sex ratio. 
 us10SSR <- perdat$USA$SSRs$SSR[perdat$USA$SSRs$Year==2010]
 log_us10SSR <- log(us10SSR)
 
-ggplot(plotDat, aes(x=age, y=value, colour=variable)) + geom_line() + geom_hline(yintercept=log_us10SSR, linetype=3)
+ggplot(plotDat, aes(x=age, y=value, colour=Variable)) + geom_line() + geom_hline(yintercept=log_us10SSR, linetype=3) + ylab(label='Male mx less Female mx') + xlab(label='Age') + scale_colour_manual(values=per_coh_colours)
 
 perFullCrossDat <- rBindThisList(lapply(perFits, function(x0) x0$allCrossPoints))
 cohFullCrossDat <- rBindThisList(lapply(cohFits, function(x0) x0$allCrossPoints))
 
 perPlotDat <- perFullCrossDat[perFullCrossDat$year >= startYear,]
 cohPlotDat <- cohFullCrossDat[cohFullCrossDat$year >= startYear,]
-
 
 plotCountries <- function(plotDat){
   legNames <- unique(perPlotDat$country)[order(unique(perPlotDat$country))]
@@ -368,8 +372,35 @@ plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'USA', 'United States'
 plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'JPN', 'Japan')
 plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'RUS', 'Russia')
 
+# Basic descriptive statistics for SSRs
+allSSRs <- rBindThisList(lapply(perdat, function(x0) x0$SSRs))
+allSSRs <- allSSRs[allSSRs$Year >= 1850,]
+yearRangeList <- lapply(split(allSSRs, allSSRs$country), function(x0) range(x0$Year))
+cname <- names(yearRangeList)
+# Store in a table
+ssrDat <- data.frame(country=cname, matrix(unlist(yearRangeList), nrow=7, byrow=T))
+colnames(ssrDat)[2:3] <- c('minyear','maxyear')
+ssrDat$yearRange <- paste(ssrDat$minyear, ssrDat$maxyear, sep='-')
+ssrDat$minSSR <-  unlist(lapply(split(allSSRs, allSSRs$country), function(x0) min(x0$SSR)))
+ssrDat$maxSSR <-  unlist(lapply(split(allSSRs, allSSRs$country), function(x0) max(x0$SSR)))
+ssrDat$meanSSR <- unlist(lapply(split(allSSRs, allSSRs$country), function(x0) mean(x0$SSR)))
+ssrDat$stdev_100 <- unlist(lapply(split(allSSRs, allSSRs$country), function(x0) sd(x0$SSR)*100))
+ssrDat$pearsons <-unlist(lapply(split(allSSRs, allSSRs$country), function(x0) cor(x0$Year, x0$SSR)))
+ssrDat <- ssrDat[,c('country','yearRange','minSSR','maxSSR','meanSSR','stdev_100','pearsons')]
+# Extend to the full sample
+allSSRDat <- ssrDat[1,]; allSSRDat$country <- 'All'
+allSSRDat$yearRange <- paste(min(allSSRs$Year), max(allSSRs$Year), sep='-')
+allSSRDat$minSSR <- min(allSSRs$SSR); allSSRDat$maxSSR <- max(allSSRs$SSR); allSSRDat$meanSSR <- mean(allSSRs$SSR)
+allSSRDat$stdev_100 <- sd(allSSRs$SSR)*100; allSSRDat$pearsons <- cor(allSSRs$Year, allSSRs$SSR)
+# Append them together
+print(ssrTab <- rbind(allSSRDat, ssrDat))
+hist(allSSRs$SSR, xlab='Secondary Sex Ratio', main='')
 
 
+# Plot the secondary ratios for each country
+print(ssrGrandMean <- mean(allSSRs$SSR))
+ggplot(allSSRs, aes(x=Year, y=SSR)) + geom_point() + geom_hline(yintercept = ssrGrandMean, linetype=3) + scale_y_continuous(limits=c(1,1.1)) + ylab(label='Secondary Sex Ratio')
+print(summary(allSSRs$SSR))
 
 # # Each country individually
 
