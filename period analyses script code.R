@@ -347,12 +347,12 @@ cohFullCrossDat <- rBindThisList(lapply(cohFits, function(x0) x0$allCrossPoints)
 perPlotDat <- perFullCrossDat[perFullCrossDat$year >= startYear,]
 cohPlotDat <- cohFullCrossDat[cohFullCrossDat$year >= startYear,]
 
-plotCountries <- function(plotDat){
+plotCountries <- function(plotDat, type='Period'){
   legNames <- unique(perPlotDat$country)[order(unique(perPlotDat$country))]
-  ggplot(plotDat, aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title='Period Sex Ratio Crossovers,\nSelect Countries') + scale_colour_manual(values=country_color_map[legNames])
+  ggplot(plotDat, aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title=paste(type, 'Sex Ratio Crossovers,\nSelect Countries')) + scale_colour_manual(values=country_color_map[legNames])
 }
 plotCountries(perPlotDat)
-plotCountries(cohPlotDat)
+plotCountries(cohPlotDat, type='Cohort')
 
 plotCountryPeriodCohortComparison <- function(perDat, cohDat, shortCName, plotCName, plotYLim=c(0,100), plotXLim=c(1850,2016)){
   perDat$type <- 'Period'  
@@ -396,10 +396,12 @@ allSSRDat$stdev_100 <- sd(allSSRs$SSR)*100; allSSRDat$pearsons <- cor(allSSRs$Ye
 print(ssrTab <- rbind(allSSRDat, ssrDat))
 hist(allSSRs$SSR, xlab='Secondary Sex Ratio', main='')
 
-
-# Plot the secondary ratios for each country
-print(ssrGrandMean <- mean(allSSRs$SSR))
-ggplot(allSSRs, aes(x=Year, y=SSR)) + geom_point() + geom_hline(yintercept = ssrGrandMean, linetype=3) + scale_y_continuous(limits=c(1,1.1)) + ylab(label='Secondary Sex Ratio')
+# Plot the secondary ratios 
+ssrGrandMean <- mean(allSSRs$SSR)
+# Get a regression line
+summary(regSSR <- lm(SSR ~ Year, data=allSSRs))
+allSSRs$fit <- regSSR$coefficients[1] + regSSR$coefficients[2]*allSSRs$Year
+ggplot(allSSRs, aes(x=Year, y=SSR, colour=country)) + geom_jitter() + geom_hline(yintercept = ssrGrandMean, linetype=3) + scale_y_continuous(limits=c(1,1.1)) + ylab(label='Secondary Sex Ratio') + geom_line(data=allSSRs, aes(x=Year, y=fit), color=sr_cols$primary$Red)
 print(summary(allSSRs$SSR))
 
 # # Each country individually
