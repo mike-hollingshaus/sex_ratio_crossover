@@ -366,11 +366,23 @@ plotCountryPeriodCohortComparison <- function(perDat, cohDat, shortCName, plotCN
     scale_colour_manual(values=per_coh_colours)
 }
 
-plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'ITA', 'Italy')
-plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'SWE', 'Sweden')
-plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'USA', 'United States')
-plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'JPN', 'Japan')
-plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'RUS', 'Russia')
+p.aus <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'AUS', 'Australia')
+p.ita <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'ITA', 'Italy')
+p.swe <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'SWE', 'Sweden')
+p.usa <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'USA', 'United States')
+p.jpn <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'JPN', 'Japan')
+p.rus <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'RUS', 'Russia')
+
+perPlotDat$type <- 'Period'
+cohPlotDat$type <- 'Cohort'
+bigDat <- rbind(perPlotDat, cohPlotDat)
+colnames(bigDat)[4] <- 'LifeTableType'
+
+# Countries to Plot
+countriesToPlot <- c('AUS','ITA','USA','SWE')
+ggplot(bigDat[bigDat$country %in% countriesToPlot,], aes(x=year, y=ageCross, colour=LifeTableType)) + geom_point() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + facet_wrap(~country, scales='fixed') + scale_colour_manual(values=per_coh_colours) # + labs(title='Period vs. Cohort Sex Ratio Crossovers for Four Countries')
+# ggplot(bigDat[bigDat$country %in% countriesToPlot,], aes(x=year, y=ageCross, colour=LifeTableType)) + geom_point() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + facet_wrap(~country, scales='free') + scale_colour_manual(values=per_coh_colours)
+
 
 # Basic descriptive statistics for SSRs
 allSSRs <- rBindThisList(lapply(perdat, function(x0) x0$SSRs))
@@ -385,7 +397,7 @@ ssrDat$minSSR <-  unlist(lapply(split(allSSRs, allSSRs$country), function(x0) mi
 ssrDat$maxSSR <-  unlist(lapply(split(allSSRs, allSSRs$country), function(x0) max(x0$SSR)))
 ssrDat$meanSSR <- unlist(lapply(split(allSSRs, allSSRs$country), function(x0) mean(x0$SSR)))
 ssrDat$stdev_100 <- unlist(lapply(split(allSSRs, allSSRs$country), function(x0) sd(x0$SSR)*100))
-ssrDat$pearsons <-unlist(lapply(split(allSSRs, allSSRs$country), function(x0) cor(x0$Year, x0$SSR)))
+# ssrDat$pearsons <-unlist(lapply(split(allSSRs, allSSRs$country), function(x0) cor(x0$Year, x0$SSR)))
 ssrDat <- ssrDat[,c('country','yearRange','minSSR','maxSSR','meanSSR','stdev_100','pearsons')]
 # Extend to the full sample
 allSSRDat <- ssrDat[1,]; allSSRDat$country <- 'All'
@@ -396,18 +408,85 @@ allSSRDat$stdev_100 <- sd(allSSRs$SSR)*100; allSSRDat$pearsons <- cor(allSSRs$Ye
 print(ssrTab <- rbind(allSSRDat, ssrDat))
 hist(allSSRs$SSR, xlab='Secondary Sex Ratio', main='')
 
-# Plot the secondary ratios 
-ssrGrandMean <- mean(allSSRs$SSR)
-# Get a regression line
-summary(regSSR <- lm(SSR ~ Year, data=allSSRs))
-allSSRs$fit <- regSSR$coefficients[1] + regSSR$coefficients[2]*allSSRs$Year
-ggplot(allSSRs, aes(x=Year, y=SSR, colour=country)) + geom_jitter() + geom_hline(yintercept = ssrGrandMean, linetype=3) + scale_y_continuous(limits=c(1,1.1)) + ylab(label='Secondary Sex Ratio') + geom_line(data=allSSRs, aes(x=Year, y=fit), color=sr_cols$primary$Red)
-print(summary(allSSRs$SSR))
+# Plot all secondary sex ratios together
+ggplot(allSSRs, aes(x=Year, y=SSR, colour=country)) + geom_point() + scale_colour_manual(values=country_color_map)
 
-# # Each country individually
+ggplot(allSSRs, aes(x=Year, y=SSR)) + geom_point() + scale_colour_manual(values=country_color_map) + facet_wrap(~country, scales='fixed') + geom_hline(yintercept=1.05, linetype=3)
 
-# lapply(split(cohFullCrossDat, cohFullCrossDat$country), function(x0){
-#   ggplot(x0, aes(x=year, y=ageCross)) + geom_point() + xlab(label='year') + ylab(label = 'Sex Ratio Crossover') + labs(title=paste(x0$country[1], 'Cohort Sex Ratio Crossover')) 
-# })
-# ggplot(plotDat, aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title='Period Sex Ratio Crossovers,\nSelect Countries') + scale_colour_manual(values=country_color_map[legNames])
+
+# Descriptive table for period sex ratio crossovers
+allPerSRX <- perFullCrossDat[perFullCrossDat$year >= 1850,]
+yearRangeList <- lapply(split(allPerSRX, allPerSRX$country), function(x0) range(x0$year))
+cname <- names(yearRangeList)
+psrxDat <- data.frame(country=cname, matrix(unlist(yearRangeList), nrow=7, byrow=T))
+colnames(psrxDat)[2:3] <- c('minyear','maxyear')
+psrxDat$yearRange <- paste(psrxDat$minyear, psrxDat$maxyear, sep='-')
+psrxDat$minSRX <-  unlist(lapply(split(allPerSRX, allPerSRX$country), function(x0) min(x0$ageCross, na.rm=TRUE)))
+psrxDat$maxSRX <-  unlist(lapply(split(allPerSRX, allPerSRX$country), function(x0) max(x0$ageCross, na.rm=TRUE)))
+psrxDat$meanSRX <- unlist(lapply(split(allPerSRX, allPerSRX$country), function(x0) mean(x0$ageCross, na.rm=TRUE)))
+psrxDat$stdev <- unlist(lapply(split(allPerSRX, allPerSRX$country), function(x0) sd(x0$ageCross, na.rm=TRUE)))
+
+# Some SRX are missing, meaning that they never cross
+# Number of missing SRX
+missTabDat <- rBindThisList(lapply(split(allPerSRX, allPerSRX$country), function(x0) {
+  missYears0 <- x0$year[is.na(x0$ageCross)]
+  
+  missYearsStr <- paste(missYears0, collapse=' ')
+  if (trimws(missYearsStr)=='') {
+    missYearsStr <-  'none'
+  }
+  data.frame(country=x0$country[1], noCrossYears=missYearsStr)
+}))
+psrxDat <- merge(psrxDat, missTabDat)
+psrxDat <- psrxDat[,c('country','yearRange','minSRX','maxSRX','meanSRX','stdev','noCrossYears')]
+
+# Extend to the full sample
+allPSRXDat <- psrxDat[1,]; allPSRXDat$country <- 'All'
+allPSRXDat$yearRange <- paste(min(allPerSRX$year), max(allPerSRX$year), sep='-')
+allPSRXDat$minSRX <- min(allPerSRX$ageCross, na.rm=TRUE); allPSRXDat$maxSRX <- max(allPerSRX$ageCross, na.rm=TRUE); allPSRXDat$meanSRX <- mean(allPerSRX$ageCross, na.rm=TRUE)
+allPSRXDat$stdev <- sd(allPerSRX$ageCross, na.rm=TRUE)
+allPSRXDat$noCrossYears <- NA
+# Append them together
+print(psrxTab <- rbind(allPSRXDat, psrxDat))
+hist(perFullCrossDat$ageCross, xlab='Period Lifetable Sex Ratio Crossovers', main='')
+
+
+
+
+# Descriptive table for cohort sex ratio crossovers
+allCohSRX <- cohFullCrossDat[cohFullCrossDat$year >= 1850,]
+yearRangeList <- lapply(split(allCohSRX, allCohSRX$country), function(x0) range(x0$year))
+cname <- names(yearRangeList)
+csrxDat <- data.frame(country=cname, matrix(unlist(yearRangeList), nrow=length(cname), byrow=T))
+colnames(csrxDat)[2:3] <- c('minyear','maxyear')
+csrxDat$yearRange <- paste(csrxDat$minyear, csrxDat$maxyear, sep='-')
+csrxDat$minSRX <-  unlist(lapply(split(allCohSRX, allCohSRX$country), function(x0) min(x0$ageCross, na.rm=TRUE)))
+csrxDat$maxSRX <-  unlist(lapply(split(allCohSRX, allCohSRX$country), function(x0) max(x0$ageCross, na.rm=TRUE)))
+csrxDat$meanSRX <- unlist(lapply(split(allCohSRX, allCohSRX$country), function(x0) mean(x0$ageCross, na.rm=TRUE)))
+csrxDat$stdev <- unlist(lapply(split(allCohSRX, allCohSRX$country), function(x0) sd(x0$ageCross, na.rm=TRUE)))
+
+missTabDat <- rBindThisList(lapply(split(allCohSRX, allCohSRX$country), function(x0) {
+  missYears0 <- x0$year[is.na(x0$ageCross)]
+  
+  missYearsStr <- paste(missYears0, collapse=' ')
+  if (trimws(missYearsStr)=='') {
+    missYearsStr <-  'none'
+  }
+  data.frame(country=x0$country[1], noCrossYears=missYearsStr)
+}))
+
+csrxDat <- merge(csrxDat, missTabDat)
+
+csrxDat <- csrxDat[,c('country','yearRange','minSRX','maxSRX','meanSRX','stdev','noCrossYears')]
+
+# Extend to the full sample
+allcsrxDat <- csrxDat[1,]; allcsrxDat$country <- 'All'
+allcsrxDat$yearRange <- paste(min(allCohSRX$year), max(allCohSRX$year), sep='-')
+allcsrxDat$minSRX <- min(allCohSRX$ageCross, na.rm=TRUE); allcsrxDat$maxSRX <- max(allCohSRX$ageCross, na.rm=TRUE); allcsrxDat$meanSRX <- mean(allCohSRX$ageCross, na.rm=TRUE)
+allcsrxDat$stdev <- sd(allCohSRX$ageCross, na.rm=TRUE)
+allcsrxDat$noCrossYears <- NA
+# Append them together
+print(csrxTab <- rbind(allcsrxDat, csrxDat))
+
+hist(cohFullCrossDat$ageCross, xlab='Cohort Lifetable Sex Ratio Crossovers', main='')
 
