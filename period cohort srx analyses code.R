@@ -25,17 +25,19 @@ setwd('D:/Current Projects/Mortality Sex Ratio Changes/sex_ratio_crossover')
 plotDir <- 'D:/Current Projects/Mortality Sex Ratio Changes/sex_ratio_crossover/Formatted Plots/'
 plotWidth <- 12.46
 plotHeight <- (3/5)*plotWidth # 14.5 
+shapeSize <- .7
 fontSize <- 7
 fontType <- 'sans'
 plotRes <- 300
 plotUnits <- 'cm'
-plotTheme <- function() theme_classic(base_size=fontSize)
+plotTheme <- function() theme_bw(base_size=fontSize) + theme(axis.title=element_text(size=fontSize))
 
 writePlotAsTiff <- function(thePlot, fileName){
   tiff(paste(plotDir, fileName, '.tiff', sep=''), width=plotWidth, height=plotHeight, units=plotUnits, res=plotRes, family=fontType) 
   print(thePlot + plotTheme())
   dev.off()
 }
+
 
 # Load in the color schemes
 source('color schemes.R')
@@ -56,6 +58,8 @@ ccodes <- read.csv('./HMD Country Codes.csv', stringsAsFactors = FALSE)
 
 # Rather than examine all countries, choose only select examples from around the world
 countriesToExamine <- c('USA', 'SWE', 'AUS', 'JPN', 'RUS', 'ITA','CHL')
+fullCountryNames <- c('United States', 'Sweden', 'Australia', 'Japan', 'Russia', 'Italy', 'Chile')
+names(fullCountryNames) <- countriesToExamine
 
 per_coh_colours <- c(sr_cols$primary$`Masters Black`, sr_cols$primary$Red)
 
@@ -70,7 +74,11 @@ country_color_map <-
     sr_cols$primary$`Granite Grey`,
     sr_cols$primary$`Red`
   )
-names(country_color_map) <- countriesToExamine[order(countriesToExamine)]
+names(country_color_map) <- fullCountryNames[order(fullCountryNames)]
+
+countryShapes <- c(1:4,6:8)
+names(countryShapes) <- countriesToExamine
+
 
 # This line of code will examine all hmd countries: countriesToExamine <- ccodes$code
 
@@ -209,8 +217,8 @@ srAnalyses <- function(datList, lowerBoundYear=0, SSR=NA, type='period'){
     ssrDat <- datList[[2]]  
   }
   
-
-    
+  
+  
   # Get the male and female data into a wideform (this includes separating datasets and then merging)
   f <- ltdat[ltdat$sex=='f', colsToKeep]
   colnames(f)[4] <- 'lx.f'
@@ -259,23 +267,29 @@ srAnalyses <- function(datList, lowerBoundYear=0, SSR=NA, type='period'){
     x <- x0[order(x0$age),]
     # Find every place the sex ratio curve is less than 1.
     srcNotGreaterOne <- (x$lx.sr < 1)
-  
-    # Sometimes, this never occurs. In such cases, the recommended action is...
-   
+    
+    
+    
     ageCross <- NA
-    if (any(srcNotGreaterOne)){
-      ageCross <- min(x$age[srcNotGreaterOne], na.rm=TRUE)-1  
+    
+    # Sometimes, there might be lifetable data, but without the births recorded (this occured with Chile during testing)
+    okToAnalyze <- !any(is.na(c(x$lx.f, x$lx.m, x$SSR, x$lx.sr)))
+    
+    if (okToAnalyze){
+      if (any(srcNotGreaterOne)){
+        ageCross <- min(x$age[srcNotGreaterOne], na.rm=TRUE)-1  
+      }
     }
-
     # Among the ages where this is happening, the minimum age - 1 is the sex ratio crossover age
     return(data.frame(year=x$Year[1], ageCross))
   })))
+  crossAgex <- crossAgex[!is.na(crossAgex$ageCross),]
   crossAgex$country <- country
   allCrossPoints <- crossAgex
   
   # Get only that subset since the lower bound year
   crossAgex <- allCrossPoints[allCrossPoints$year >= lowerBoundYear,]
-
+  
   # Plots
   
   basePlot <- ggplot(allCrossPoints, aes(x=year, y=ageCross)) + geom_point() + scale_y_continuous(limits=c(0,70)) + labs(title=paste('Sex Ratio Crossover by Year', type, 'Life Tables\n',cName)) # all crossover points for the country
@@ -343,14 +357,8 @@ plotDat2 <- plotDat[plotDat$age <= 60 & !is.na(plotDat$age),]
 plotDat2$variable <- deLevel(plotDat2$variable)
 plotDat2$Sex <- ifelse(plotDat2$variable=='m.mx', 'Male', 'Female')
 
-mxBySexPlot <- ggplot(plotDat2, aes(x=age, y=value, linetype=Sex)) + geom_line() + ylab(label='Mortality rate m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2)
+mxBySexPlot <- ggplot(plotDat2, aes(x=age, y=value, linetype=Sex, colour=Sex)) + geom_line() + ylab(label='Mortality rate m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2) + scale_color_manual(values=per_coh_colours)
 writePlotAsTiff(mxBySexPlot, 'fMx by sex USA 2010')
-
-
-# tiff(paste(plotDir, 'fMx by sex USA 2010.tiff', sep='/'), width = plotWidth, height = plotHeight, units=plotUnits, res=plotRes, family=fontType) 
-# print(mxBySexPlot + plotTheme())
-# dev.off()
-
 
 # Calculate the excess and cumulative excess male mortality
 usa2010.2$dmr  <- usa2010.2$m.mx-usa2010.2$f.mx
@@ -364,9 +372,8 @@ us10SSR <- perdat$USA$SSRs$SSR[perdat$USA$SSRs$Year==2010]
 log_us10SSR <- log(us10SSR)
 
 tSize <- 2
-cmdrPlot <- ggplot(plotDat, aes(x=age, y=value, linetype=Variable)) + geom_line() + ylab(label='Difference in m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2) + geom_hline(yintercept=log_us10SSR, linetype=3) + geom_vline(xintercept=55, linetype=3) + annotate('text', x=53.5, y=.02, label='Sex Ratio Crossover: 55', angle=90, size=tSize) + annotate('text', x=20, y=.05, label='Natural log of Secondary Sex Ratio: 0.047', size=tSize)
+cmdrPlot <- ggplot(plotDat, aes(x=age, y=value, linetype=Variable, colour=Variable)) + geom_line() + ylab(label='Difference in m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2) + geom_hline(yintercept=log_us10SSR, linetype=3) + geom_vline(xintercept=55, linetype=3) + annotate('text', x=53.5, y=.02, label='Sex Ratio Crossover: 55', angle=90, size=tSize) + annotate('text', x=20, y=.051, label='Natural log of Secondary Sex Ratio: 0.047', size=tSize) + scale_color_manual(values=per_coh_colours)
 writePlotAsTiff(cmdrPlot, 'cmdr Plot')
-
 
 perFullCrossDat <- rBindThisList(lapply(perFits, function(x0) x0$allCrossPoints))
 cohFullCrossDat <- rBindThisList(lapply(cohFits, function(x0) x0$allCrossPoints))
@@ -375,39 +382,56 @@ perPlotDat <- perFullCrossDat[perFullCrossDat$year >= startYear,]
 cohPlotDat <- cohFullCrossDat[cohFullCrossDat$year >= startYear,]
 
 plotCountries <- function(plotDat, type='Period'){
-  legNames <- unique(perPlotDat$country)[order(unique(perPlotDat$country))]
-  ggplot(plotDat, aes(x=year, y=ageCross, colour=country)) + geom_jitter() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title=paste(type, 'Sex Ratio Crossovers,\nSelect Countries')) + scale_colour_manual(values=country_color_map[legNames])
-}
-plotCountries(perPlotDat)
-plotCountries(cohPlotDat, type='Cohort')
-
-plotCountryPeriodCohortComparison <- function(perDat, cohDat, shortCName, plotCName, plotYLim=c(0,100), plotXLim=c(1850,2016)){
-  perDat$type <- 'Period'  
-  cohDat$type <- 'Cohort'
-  countryPerDat <- perDat[perDat$country==shortCName,]
-  countryCohDat <- cohDat[cohDat$country==shortCName,]
+  plotDat$country <- fullCountryNames[plotDat$country]
+  legNames0 <- unique(plotDat$country)
+  legNames <- legNames0[order(legNames0)]
+  plotDat$Country <- factor(plotDat$country, levels=legNames)
   
-  ggplot(rbind(countryPerDat, countryCohDat), aes(x=year, y=ageCross, colour=type)) + geom_jitter() + # Main Plot
-    scale_x_continuous(limits=plotXLim) + scale_y_continuous(limits=plotYLim) + # Scales  
-    xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + labs(title=paste('Period vs. Cohort Sex Ratio Crossovers\n', plotCName, sep='')) + # Labels / Title                                                                  
-    scale_colour_manual(values=per_coh_colours)
+  cShapes2 <- countryShapes
+  names(cShapes2) <- fullCountryNames[names(cShapes2)]
+  
+  ggplot(plotDat, aes(x=year, y=ageCross, shape=Country, colour=Country)) + geom_jitter(size=shapeSize) + xlab(label='Year') + ylab(label = 'Sex ratio crossover') + scale_shape_manual(values=cShapes2[legNames]) + scale_color_manual(values=country_color_map[legNames])
 }
 
-p.aus <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'AUS', 'Australia')
-p.ita <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'ITA', 'Italy')
-p.swe <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'SWE', 'Sweden')
-p.usa <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'USA', 'United States')
-p.jpn <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'JPN', 'Japan')
-p.rus <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'RUS', 'Russia')
+# Plot period SRX
+perPlots <- plotCountries(perPlotDat)
+# Plot cohort SRX
+cohPlots <- plotCountries(cohPlotDat, type='Cohort')
+
+writePlotAsTiff(perPlots, 'Period SRX')
+writePlotAsTiff(cohPlots, 'Cohort SRX')
+
+# plotCountryPeriodCohortComparison <- function(perDat, cohDat, shortCName, plotCName, plotYLim=c(0,100), plotXLim=c(1850,2016)){
+#   perDat$type <- 'Period'  
+#   cohDat$type <- 'Cohort'
+#   countryPerDat <- perDat[perDat$country==shortCName,]
+#   countryCohDat <- cohDat[cohDat$country==shortCName,]
+#   
+#   ggplot(rbind(countryPerDat, countryCohDat), aes(x=year, y=ageCross, shape=type)) + geom_jitter() + # Main Plot
+#     scale_x_continuous(limits=plotXLim) + scale_y_continuous(limits=plotYLim) + # Scales  
+#     xlab(label='Year') + ylab(label = 'Sex ratio crossover') + labs(title=paste('Period vs. Cohort Sex Ratio Crossovers\n', plotCName, sep='')) + # Labels / Title                                                                  
+#     scale_colour_manual(values=per_coh_colours)
+# }
+# 
+# p.aus <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'AUS', 'Australia')
+# p.ita <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'ITA', 'Italy')
+# p.swe <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'SWE', 'Sweden')
+# p.usa <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'USA', 'United States')
+# p.jpn <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'JPN', 'Japan')
+# p.rus <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'RUS', 'Russia')
 
 perPlotDat$type <- 'Period'
 cohPlotDat$type <- 'Cohort'
 bigDat <- rbind(perPlotDat, cohPlotDat)
-colnames(bigDat)[4] <- 'LifeTableType'
+colnames(bigDat)[4] <- 'Type'
+bigDat$Country <- fullCountryNames[bigDat$country]
 
 # Countries to Plot
-countriesToPlot <- c('AUS','ITA','USA','SWE')
-ggplot(bigDat[bigDat$country %in% countriesToPlot,], aes(x=year, y=ageCross, colour=LifeTableType)) + geom_point() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + facet_wrap(~country, scales='fixed') + scale_colour_manual(values=per_coh_colours) # + labs(title='Period vs. Cohort Sex Ratio Crossovers for Four Countries')
+
+pvcPlot <- ggplot(bigDat[bigDat$Country %in% countriesToPlot,], aes(x=year, y=ageCross, shape=Type, colour=Type)) + geom_jitter(size=shapeSize) + xlab(label='Year') + ylab(label = 'Sex ratio crossover') + facet_wrap(~Country, scales='fixed') + scale_shape_manual(values=c(1,4)) + scale_color_manual(values=per_coh_colours)
+
+writePlotAsTiff(pvcPlot, 'Cohort vs Period')
+
 # ggplot(bigDat[bigDat$country %in% countriesToPlot,], aes(x=year, y=ageCross, colour=LifeTableType)) + geom_point() + xlab(label='Year') + ylab(label = 'Sex Ratio Crossover') + facet_wrap(~country, scales='free') + scale_colour_manual(values=per_coh_colours)
 
 
@@ -433,12 +457,12 @@ allSSRDat$minSSR <- min(allSSRs$SSR); allSSRDat$maxSSR <- max(allSSRs$SSR); allS
 allSSRDat$stdev_100 <- sd(allSSRs$SSR)*100; allSSRDat$pearsons <- cor(allSSRs$Year, allSSRs$SSR)
 # Append them together
 print(ssrTab <- rbind(allSSRDat, ssrDat))
-hist(allSSRs$SSR, xlab='Secondary Sex Ratio', main='')
 
+#hist(allSSRs$SSR, xlab='Secondary Sex Ratio', main='')
 # Plot all secondary sex ratios together
-ggplot(allSSRs, aes(x=Year, y=SSR, colour=country)) + geom_point() + scale_colour_manual(values=country_color_map)
+#ggplot(allSSRs, aes(x=Year, y=SSR, colour=country)) + geom_point() + scale_colour_manual(values=country_color_map)
 
-ggplot(allSSRs, aes(x=Year, y=SSR)) + geom_point() + scale_colour_manual(values=country_color_map) + facet_wrap(~country, scales='fixed') + geom_hline(yintercept=1.05, linetype=3)
+#ggplot(allSSRs, aes(x=Year, y=SSR)) + geom_point() + scale_colour_manual(values=country_color_map) + facet_wrap(~country, scales='fixed') + geom_hline(yintercept=1.05, linetype=3)
 
 
 # Descriptive table for period sex ratio crossovers
