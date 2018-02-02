@@ -22,6 +22,21 @@ rBindThisList <- function(theList){
 }
 # Set the working directory to the local repository
 setwd('D:/Current Projects/Mortality Sex Ratio Changes/sex_ratio_crossover')
+plotDir <- 'D:/Current Projects/Mortality Sex Ratio Changes/sex_ratio_crossover/Formatted Plots/'
+plotWidth <- 12.46
+plotHeight <- (3/5)*plotWidth # 14.5 
+fontSize <- 7
+fontType <- 'sans'
+plotRes <- 300
+plotUnits <- 'cm'
+plotTheme <- function() theme_classic(base_size=fontSize)
+
+writePlotAsTiff <- function(thePlot, fileName){
+  tiff(paste(plotDir, fileName, '.tiff', sep=''), width=plotWidth, height=plotHeight, units=plotUnits, res=plotRes, family=fontType) 
+  print(thePlot + plotTheme())
+  dev.off()
+}
+
 # Load in the color schemes
 source('color schemes.R')
 
@@ -32,6 +47,8 @@ hmd.loginData <- trimws(as.character(read.csv(hmd.loginFile, stringsAsFactors = 
 hmd.username <- hmd.loginData[1]
 hmd.password <- hmd.loginData[2]
 minAgeRequiredForCohortLifeTabs <- 50
+
+
 
 
 # Reads in the HMD codes. Note, these were adapted from the Hyndman's CRAN demography package. My require further updating if HMD has since altered the codes.
@@ -326,7 +343,14 @@ plotDat2 <- plotDat[plotDat$age <= 60 & !is.na(plotDat$age),]
 plotDat2$variable <- deLevel(plotDat2$variable)
 plotDat2$Sex <- ifelse(plotDat2$variable=='m.mx', 'Male', 'Female')
 
-ggplot(plotDat2, aes(x=age, y=value, colour=Sex)) + geom_line() + ylab(label='Mortality Rate mx') + xlab(label='Age') + scale_colour_manual(values=per_coh_colours)  # +geom_ribbon(data=usa2010.2[usa2010.2$age <= 50 & !is.na(usa2010.2$age),], aes(x=age, ymin=f.mx, ymax=m.mx), inherit.aes=FALSE, fill = "grey70")
+mxBySexPlot <- ggplot(plotDat2, aes(x=age, y=value, linetype=Sex)) + geom_line() + ylab(label='Mortality Rate m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2)
+writePlotAsTiff(mxBySexPlot, 'fMx by sex USA 2010')
+
+
+# tiff(paste(plotDir, 'fMx by sex USA 2010.tiff', sep='/'), width = plotWidth, height = plotHeight, units=plotUnits, res=plotRes, family=fontType) 
+# print(mxBySexPlot + plotTheme())
+# dev.off()
+
 
 # Calculate the excess and cumulative excess male mortality
 usa2010.2$dmr  <- usa2010.2$m.mx-usa2010.2$f.mx
@@ -339,7 +363,9 @@ plotDat$Variable <- ifelse(plotDat$variable=='dmr', 'DMR', 'Cumulative DMR')
 us10SSR <- perdat$USA$SSRs$SSR[perdat$USA$SSRs$Year==2010]
 log_us10SSR <- log(us10SSR)
 
-ggplot(plotDat, aes(x=age, y=value, colour=Variable)) + geom_line() + geom_hline(yintercept=log_us10SSR, linetype=3) + ylab(label='Male mx less Female mx') + xlab(label='Age') + scale_colour_manual(values=per_coh_colours)
+cmdrPlot <- ggplot(plotDat, aes(x=age, y=value, linetype=Variable)) + geom_line() + ylab(label='Difference in m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2) + geom_hline(yintercept=log_us10SSR, linetype=3)
+writePlotAsTiff(cmdrPlot, 'cmdr Plot')
+
 
 perFullCrossDat <- rBindThisList(lapply(perFits, function(x0) x0$allCrossPoints))
 cohFullCrossDat <- rBindThisList(lapply(cohFits, function(x0) x0$allCrossPoints))
