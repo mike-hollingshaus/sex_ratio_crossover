@@ -343,7 +343,7 @@ plotDat2 <- plotDat[plotDat$age <= 60 & !is.na(plotDat$age),]
 plotDat2$variable <- deLevel(plotDat2$variable)
 plotDat2$Sex <- ifelse(plotDat2$variable=='m.mx', 'Male', 'Female')
 
-mxBySexPlot <- ggplot(plotDat2, aes(x=age, y=value, linetype=Sex)) + geom_line() + ylab(label='Mortality Rate m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2)
+mxBySexPlot <- ggplot(plotDat2, aes(x=age, y=value, linetype=Sex)) + geom_line() + ylab(label='Mortality rate m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2)
 writePlotAsTiff(mxBySexPlot, 'fMx by sex USA 2010')
 
 
@@ -363,7 +363,8 @@ plotDat$Variable <- ifelse(plotDat$variable=='dmr', 'DMR', 'Cumulative DMR')
 us10SSR <- perdat$USA$SSRs$SSR[perdat$USA$SSRs$Year==2010]
 log_us10SSR <- log(us10SSR)
 
-cmdrPlot <- ggplot(plotDat, aes(x=age, y=value, linetype=Variable)) + geom_line() + ylab(label='Difference in m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2) + geom_hline(yintercept=log_us10SSR, linetype=3)
+tSize <- 2
+cmdrPlot <- ggplot(plotDat, aes(x=age, y=value, linetype=Variable)) + geom_line() + ylab(label='Difference in m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2) + geom_hline(yintercept=log_us10SSR, linetype=3) + geom_vline(xintercept=55, linetype=3) + annotate('text', x=53.5, y=.02, label='Sex Ratio Crossover: 55', angle=90, size=tSize) + annotate('text', x=20, y=.05, label='Natural log of Secondary Sex Ratio: 0.047', size=tSize)
 writePlotAsTiff(cmdrPlot, 'cmdr Plot')
 
 
