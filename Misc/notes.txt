@@ -1,0 +1,14 @@
+algorithm to find eigenvalues and eigenvectors
+
+linearization: unstable node, saddle, spiral
+
+Time theming
+
+
+Six Ways to Work Smarter
+1. Time Yourself
+2. Use GPS (Goal, Purpose, Scope)
+3. Time Theming
+4. Email Strategies
+5. Don't Start from Scratch (Use Templates)
+6. Leave Yourself A Note
