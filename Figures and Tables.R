@@ -164,32 +164,30 @@ pvcPlot <- ggplot(bigDat[bigDat$Country %in% countriesToPlot,], aes(x=year, y=ag
 writePlotAsTiff(pvcPlot, 'Cohort vs Period')
 
 
+# Descriptive Statistics
 
-
-# Basic descriptive statistics for SSRs
-allSSRs <- rBindThisList(lapply(perdat, function(x0) x0$SSRs))
-allSSRs <- allSSRs[allSSRs$Year >= 1850,]
-yearRangeList <- lapply(split(allSSRs, allSSRs$country), function(x0) range(x0$Year))
-cname <- names(yearRangeList)
-# Store in a table
-ssrDat <- data.frame(country=cname, matrix(unlist(yearRangeList), nrow=7, byrow=T))
-colnames(ssrDat)[2:3] <- c('minyear','maxyear')
-ssrDat$yearRange <- paste(ssrDat$minyear, ssrDat$maxyear, sep='-')
-ssrDat$minSSR <-  unlist(lapply(split(allSSRs, allSSRs$country), function(x0) min(x0$SSR)))
-ssrDat$maxSSR <-  unlist(lapply(split(allSSRs, allSSRs$country), function(x0) max(x0$SSR)))
-ssrDat$meanSSR <- unlist(lapply(split(allSSRs, allSSRs$country), function(x0) mean(x0$SSR)))
-ssrDat$stdev_100 <- unlist(lapply(split(allSSRs, allSSRs$country), function(x0) sd(x0$SSR)*100))
-# ssrDat$pearsons <-unlist(lapply(split(allSSRs, allSSRs$country), function(x0) cor(x0$Year, x0$SSR)))
-ssrDat <- ssrDat[,c('country','yearRange','minSSR','maxSSR','meanSSR','stdev_100','pearsons')]
-# Extend to the full sample
-allSSRDat <- ssrDat[1,]; allSSRDat$country <- 'All'
-allSSRDat$yearRange <- paste(min(allSSRs$Year), max(allSSRs$Year), sep='-')
-allSSRDat$minSSR <- min(allSSRs$SSR); allSSRDat$maxSSR <- max(allSSRs$SSR); allSSRDat$meanSSR <- mean(allSSRs$SSR)
-allSSRDat$stdev_100 <- sd(allSSRs$SSR)*100; allSSRDat$pearsons <- cor(allSSRs$Year, allSSRs$SSR)
-# Append them together
-print(ssrTab <- rbind(allSSRDat, ssrDat))
-
-
+# # Basic descriptive statistics for SSRs
+# allSSRs <- rBindThisList(lapply(perdat, function(x0) x0$SSRs))
+# allSSRs <- allSSRs[allSSRs$Year >= 1850,]
+# yearRangeList <- lapply(split(allSSRs, allSSRs$country), function(x0) range(x0$Year))
+# cname <- names(yearRangeList)
+# # Store in a table
+# ssrDat <- data.frame(country=cname, matrix(unlist(yearRangeList), nrow=7, byrow=T))
+# colnames(ssrDat)[2:3] <- c('minyear','maxyear')
+# ssrDat$yearRange <- paste(ssrDat$minyear, ssrDat$maxyear, sep='-')
+# ssrDat$minSSR <-  unlist(lapply(split(allSSRs, allSSRs$country), function(x0) min(x0$SSR)))
+# ssrDat$maxSSR <-  unlist(lapply(split(allSSRs, allSSRs$country), function(x0) max(x0$SSR)))
+# ssrDat$meanSSR <- unlist(lapply(split(allSSRs, allSSRs$country), function(x0) mean(x0$SSR)))
+# ssrDat$stdev_100 <- unlist(lapply(split(allSSRs, allSSRs$country), function(x0) sd(x0$SSR)*100))
+# # ssrDat$pearsons <-unlist(lapply(split(allSSRs, allSSRs$country), function(x0) cor(x0$Year, x0$SSR)))
+# ssrDat <- ssrDat[,c('country','yearRange','minSSR','maxSSR','meanSSR','stdev_100','pearsons')]
+# # Extend to the full sample
+# allSSRDat <- ssrDat[1,]; allSSRDat$country <- 'All'
+# allSSRDat$yearRange <- paste(min(allSSRs$Year), max(allSSRs$Year), sep='-')
+# allSSRDat$minSSR <- min(allSSRs$SSR); allSSRDat$maxSSR <- max(allSSRs$SSR); allSSRDat$meanSSR <- mean(allSSRs$SSR)
+# allSSRDat$stdev_100 <- sd(allSSRs$SSR)*100; allSSRDat$pearsons <- cor(allSSRs$Year, allSSRs$SSR)
+# # Append them together
+# print(ssrTab <- rbind(allSSRDat, ssrDat))
 
 # Descriptive table for period sex ratio crossovers
 allPerSRX <- perFullCrossDat[perFullCrossDat$year >= 1850,]
@@ -206,11 +204,38 @@ psrxDat$stdev <- unlist(lapply(split(allPerSRX, allPerSRX$country), function(x0)
 # Some SRX are missing, meaning that they never cross
 # Number of missing SRX
 missTabDat <- rBindThisList(lapply(split(allPerSRX, allPerSRX$country), function(x0) {
-  missYears0 <- x0$year[is.na(x0$ageCross)]
   
-  missYearsStr <- paste(missYears0, collapse=' ')
-  if (trimws(missYearsStr)=='') {
-    missYearsStr <-  'none'
+  
+  missYears0 <- x0$year[is.na(x0$ageCross)]
+  if (length(missYears0) > 0){
+    stop('There was an NA age cross found!')
+  }
+  
+  yearDiffs <- diff(x0$year)
+  
+  
+  missYearsStr <- 'None'
+  
+  atLeastOneMissingYear <- any(yearDiffs > 1)
+  if (atLeastOneMissingYear){
+    print('d')
+    # Get the indices of the year-diffs greater than 1
+    diffInd <- which(yearDiffs > 1)
+    # Find the years that are immediately previous to missing years
+    prevYears <- x0$year[diffInd]
+    # Also, immediately afterwards
+    postYears <- x0$year[diffInd+1]
+    missYears <- character()
+    for (i in 1:length(diffInd)){
+      missYears <- c(missYears, paste(prevYears[i]+1, postYears[i]-1, sep='-'))
+    }
+    # The missing years are in between
+    # missingYears <- prevYears:postYears
+    missYearsStr <- paste(missYears, collapse=', ')
+  }
+  
+  if (x0$country[1]=='ITA'){
+    print('d')
   }
   data.frame(country=x0$country[1], noCrossYears=missYearsStr)
 }))
@@ -225,7 +250,7 @@ allPSRXDat$stdev <- sd(allPerSRX$ageCross, na.rm=TRUE)
 allPSRXDat$noCrossYears <- NA
 # Append them together
 print(psrxTab <- rbind(allPSRXDat, psrxDat))
-hist(perFullCrossDat$ageCross, xlab='Period Lifetable Sex Ratio Crossovers', main='')
+# hist(perFullCrossDat$ageCross, xlab='Period Lifetable Sex Ratio Crossovers', main='')
 
 
 
