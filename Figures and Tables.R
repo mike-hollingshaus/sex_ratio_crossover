@@ -33,6 +33,7 @@ fontType <- 'sans'
 plotRes <- 300
 plotUnits <- 'cm'
 plotTheme <- function() theme_bw(base_size=fontSize) + theme(axis.title=element_text(size=fontSize))
+startYear <- 1850
 
 writePlotAsTiff <- function(thePlot, fileName){
   tiff(paste(plotDir, fileName, '.tiff', sep=''), width=plotWidth, height=plotHeight, units=plotUnits, res=plotRes, family=fontType) 
@@ -79,6 +80,7 @@ deLevel <- function(v){
 }
 
 # Figure 1 - Period Sex Ratio Curve for U.S. 2010 period lifetable
+tSize <- 1.2
 temp <- perFits$USA$origDat
 plotDat <- temp[temp$Year==2010,]
 srcPlot <- ggplot(plotDat, aes(x=age, y=lx.sr)) + geom_line() + xlab(label='Age') + ylab(label='Sex ratio') + geom_hline(yintercept=1, linetype=3) + geom_vline(xintercept=56, linetype=3) + scale_y_continuous(limits=c(.3,1.1), breaks=seq(.4,1.2,.2)) + annotate('text', x=54.5, y=.6, label='Sex ratio crossover: 56', angle=90, size=tSize) + annotate('text', x=10, y=1.07, label='Secondary sex ratio: 1.05', size=tSize)
@@ -267,52 +269,23 @@ csrxDat$maxSRX <-  unlist(lapply(split(allCohSRX, allCohSRX$country), function(x
 csrxDat$meanSRX <- unlist(lapply(split(allCohSRX, allCohSRX$country), function(x0) mean(x0$ageCross, na.rm=TRUE)))
 csrxDat$stdev <- unlist(lapply(split(allCohSRX, allCohSRX$country), function(x0) sd(x0$ageCross, na.rm=TRUE)))
 
-missTabDat <- rBindThisList(lapply(split(allCohSRX, allCohSRX$country), function(x0) {
-  missYears0 <- x0$year[is.na(x0$ageCross)]
-  
-  missYearsStr <- paste(missYears0, collapse=' ')
-  if (trimws(missYearsStr)=='') {
-    missYearsStr <-  'none'
-  }
-  data.frame(country=x0$country[1], noCrossYears=missYearsStr)
-}))
+csrxDat$country <- deLevel(csrxDat$country)
 
-csrxDat <- merge(csrxDat, missTabDat)
+csrxDat <- csrxDat[order(csrxDat$country),]
 
-csrxDat <- csrxDat[,c('country','yearRange','minSRX','maxSRX','meanSRX','stdev','noCrossYears')]
+# csrxDat <- merge(csrxDat, missTabDat)
+
+csrxDat <- csrxDat[,c('country','yearRange','minSRX','maxSRX','meanSRX','stdev')]
 
 # Extend to the full sample
 allcsrxDat <- csrxDat[1,]; allcsrxDat$country <- 'All'
 allcsrxDat$yearRange <- paste(min(allCohSRX$year), max(allCohSRX$year), sep='-')
 allcsrxDat$minSRX <- min(allCohSRX$ageCross, na.rm=TRUE); allcsrxDat$maxSRX <- max(allCohSRX$ageCross, na.rm=TRUE); allcsrxDat$meanSRX <- mean(allCohSRX$ageCross, na.rm=TRUE)
 allcsrxDat$stdev <- sd(allCohSRX$ageCross, na.rm=TRUE)
-allcsrxDat$noCrossYears <- NA
+# allcsrxDat$noCrossYears <- NA
 # Append them together
+
 print(csrxTab <- rbind(allcsrxDat, csrxDat))
-
-hist(cohFullCrossDat$ageCross, xlab='Cohort Lifetable Sex Ratio Crossovers', main='')
-
-
-#hist(allSSRs$SSR, xlab='Secondary Sex Ratio', main='')
-# Plot all secondary sex ratios together
-#ggplot(allSSRs, aes(x=Year, y=SSR, colour=country)) + geom_point() + scale_colour_manual(values=country_color_map)
-
-#ggplot(allSSRs, aes(x=Year, y=SSR)) + geom_point() + scale_colour_manual(values=country_color_map) + facet_wrap(~country, scales='fixed') + geom_hline(yintercept=1.05, linetype=3)
-# plotCountryPeriodCohortComparison <- function(perDat, cohDat, shortCName, plotCName, plotYLim=c(0,100), plotXLim=c(1850,2016)){
-#   perDat$type <- 'Period'  
-#   cohDat$type <- 'Cohort'
-#   countryPerDat <- perDat[perDat$country==shortCName,]
-#   countryCohDat <- cohDat[cohDat$country==shortCName,]
-#   
-#   ggplot(rbind(countryPerDat, countryCohDat), aes(x=year, y=ageCross, shape=type)) + geom_jitter() + # Main Plot
-#     scale_x_continuous(limits=plotXLim) + scale_y_continuous(limits=plotYLim) + # Scales  
-#     xlab(label='Year') + ylab(label = 'Sex ratio crossover') + labs(title=paste('Period vs. Cohort Sex Ratio Crossovers\n', plotCName, sep='')) + # Labels / Title                                                                  
-#     scale_colour_manual(values=per_coh_colours)
-# }
-# 
-# p.aus <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'AUS', 'Australia')
-# p.ita <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'ITA', 'Italy')
-# p.swe <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'SWE', 'Sweden')
-# p.usa <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'USA', 'United States')
-# p.jpn <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'JPN', 'Japan')
-# p.rus <- plotCountryPeriodCohortComparison(perPlotDat, cohPlotDat, 'RUS', 'Russia')
+allSSRs <- rBindThisList(lapply(perdat, function(x0) x0$SSRs))
+mean(allSSRs$SSR, na.rm = T)
+sd(allSSRs$SSR, na.rm = T)
