@@ -6,17 +6,13 @@
 
 library(data.table)
 library(ggplot2)
-library(demography)
 
 # Empty out memory
 rm(list=ls())
 
-# A prefrence function to clear the console
-cls <- function() cat('\014')
-cls()
-
 # Load Data
-load('D:/Current Projects/Mortality Sex Ratio Changes/SRX Objects with Raw HMD Data/PeriodCohortSRXObjects_2018-02-02')
+# load('D:/Current Projects/Mortality Sex Ratio Changes/SRX Objects with Raw HMD Data/PeriodCohortSRXObjects_2018-02-02')
+load('D:/Current Projects/Mortality Sex Ratio Changes/SRX Objects with Raw HMD Data/PeriodCohortSRXObjects_2018-02-23')
 
 # A convenience function to rbind a list using the data.table package, but cast it back into data.frame format
 rBindThisList <- function(theList){
@@ -40,7 +36,6 @@ writePlotAsTiff <- function(thePlot, fileName){
   print(thePlot + plotTheme())
   dev.off()
 }
-
 
 # Load in the color schemes
 source('color schemes.R')

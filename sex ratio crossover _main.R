@@ -2,18 +2,19 @@
 # Demographer
 # Kem C. Gardner Policy Institute
 # University of Utah
-# Purpose: Read data from Human Mortality Database. construct period and cohort sex ratio curve and crossover objects. Write them to disk.
-# Required packages: data.table, pbapply
-#  The functions that start with 'hmd' were adapted from code by Hyndman et al. in the package 'demography'
-
-# Instructions
+# Purpose: This is the main user interface script for replicating the work.
+# Instructions. 
+#   User sets: 
+#     1. the path for the working directory where the four script files and the ccodes dataset is located.
+#     2. the path for a personal folder containing the output objects. Can be the same as the first folder, if desired. However, it should not be linked to a public repository.
+#     2. A personal folder for storing the sex ratio analysis outputs
+#     4. HMD username and password
+#     5. A vector of strings representing the countries to be examined (using the HMD abbreviations). Default is c('USA', 'SWE', 'AUS', 'JPN', 'RUS', 'ITA','CHL')
+#     6. The first secular year analysis is desired (default is 1850)
+#  Once these are set, run the entire file. The "HMD Interface ..." script runs analyses, and stores objects on the local disk in the "personal folder". The "Figures and Tables" script generaetes figures and tables, along with other data included in the analysis.
 
 # Empty out memory
 rm(list=ls())
-
-# Load packages
-library(data.table) # data manipulation functions
-library(pbapply) # progress bar for the 'lapply()' function
 
 # Set the working directory to the local repository
 setwd('D:/Current Projects/Mortality Sex Ratio Changes/sex_ratio_crossover')
