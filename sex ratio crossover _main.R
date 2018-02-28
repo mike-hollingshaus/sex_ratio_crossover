@@ -2,6 +2,7 @@
 # Demographer
 # Kem C. Gardner Policy Institute
 # University of Utah
+# mike.hollingshaus@utah.edu
 # Purpose: This is the main user interface script for replicating the work.
 # Instructions. 
 #   User sets: 

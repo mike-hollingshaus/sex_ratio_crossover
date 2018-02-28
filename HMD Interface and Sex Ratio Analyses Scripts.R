@@ -2,6 +2,7 @@
 # Demographer
 # Kem C. Gardner Policy Institute
 # University of Utah
+# mike.hollingshaus@utah.edu
 # Purpose: Read data from Human Mortality Database. construct period and cohort sex ratio curve and crossover objects. Write them to disk.
 # Required packages: data.table, pbapply
 #  The functions that start with 'hmd' were adapted from code by Hyndman et al. in the package 'demography'

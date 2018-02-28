@@ -1,4 +1,9 @@
-# Color Schemes for plotting
+# Author: Mike Hollingshaus
+# Demographer
+# Kem C. Gardner Policy Institute
+# University of Utah
+# mike.hollingshaus@utah.edu
+# Purpose: Color Schemes for plotting
 require(ggplot2)
 
 capFirstLetter <- function(x){

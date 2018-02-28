@@ -2,6 +2,7 @@
 # Demographer
 # Kem C. Gardner Policy Institute
 # University of Utah
+# mike.hollingshaus@utah.edu
 # Purpose: Generates Figures and Tables, and other data for document. Requires packages data.table and ggplot2
 #             This should be run right after the "HMD Interface ..." script. However, it can also load previously-saved sex ratio analyses data objects
 #             Tables are simply printed. Plots are written to disk, and formatted to Demographic Research specifications.
