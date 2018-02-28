@@ -3,9 +3,14 @@
 # Kem C. Gardner Policy Institute
 # University of Utah
 # Purpose: Generates Figures and Tables, and other data for document. Requires packages data.table and ggplot2
-#             This can be run right after the HMD Interface ... script. However, it can also load previously-saved sex ratio analyses data objects
-#             Tables are simply printed, but plots are written to disk, and formmated to Demographic Research specifications.
+#             This should be run right after the "HMD Interface ..." script. However, it can also load previously-saved sex ratio analyses data objects
+#             Tables are simply printed. Plots are written to disk, and formatted to Demographic Research specifications.
 
+######
+# Initial setup
+######
+
+# Load libraries
 library(data.table)
 library(ggplot2)
 
@@ -29,8 +34,7 @@ writePlotAsTiff <- function(thePlot, fileName){
   dev.off()
 }
 
-# Rather than examine all countries, choose only select examples from around the world
-# countriesToExamine <- c('USA', 'SWE', 'AUS', 'JPN', 'RUS', 'ITA','CHL')
+# Name the full country names with the HMD abbreviations. This simplifies R coding.
 names(fullCountryNames) <- countriesToExamine
 
 # Load in the color schemes for plotting. They are stored in a separate script.
@@ -52,20 +56,25 @@ names(country_color_map) <- fullCountryNames[order(fullCountryNames)]
 countryShapes <- c(1:4,6:8)
 names(countryShapes) <- countriesToExamine
 
+
+######
+# Figures
+######
+
 # Figure 1 - Period Sex Ratio Curve for U.S. 2010 period lifetable. Note that, when saved as a .tiff, the scales change.
 temp <- perFits$USA$origDat # The US original data
 plotDat <- temp[temp$Year==2010,] # The US 2010 data
 srcPlot <- ggplot(plotDat, aes(x=age, y=lx.sr)) + geom_line() + xlab(label='Age') + ylab(label='Sex ratio') + geom_hline(yintercept=1, linetype=3) + geom_vline(xintercept=56, linetype=3) + scale_y_continuous(limits=c(.3,1.1), breaks=seq(.4,1.2,.2)) + annotate('text', x=54.5, y=.6, label='Sex ratio crossover: 56', angle=90, size=1.2) + annotate('text', x=10, y=1.07, label='Secondary sex ratio: 1.05', size=1.2) # The plot
-writePlotAsTiff(srcPlot, 'USA2010SRC') # Write the plot to personal folder, if desired.
+writePlotAsTiff(srcPlot, 'USA2010SRC') # Write the plot to personal folder
 
 # Figure 2, showing 2010 female and male m(x)
+# First, set up the data
 usa2010 <- perdat$USA$lifetabs[perdat$USA$lifetabs$Year==2010,c('sex','Age','mx')] # US 2010 data
 u10m <- usa2010[usa2010$sex=='m',] # Male
 u10f <- usa2010[usa2010$sex=='f',] # Female
 colnames(u10m)[3] <- 'm.mx' # New column name
 colnames(u10f)[3] <- 'f.mx' # New column name
 usa2010.2 <- merge(u10m[,c('Age','m.mx')], u10f[,c('Age','f.mx')]) # Merged file
-# Get numeric age, and order data
 usa2010.2$age <- as.numeric(deLevel(usa2010.2$Age)) # Numeric age
 usa2010.2 <- usa2010.2[order(usa2010.2$age),] # Order the data
 plotDat <- melt(usa2010.2[,c('age','m.mx','f.mx')], 'age') # The plot data in long form
@@ -73,10 +82,12 @@ plotDat2 <- plotDat[plotDat$age <= 60 & !is.na(plotDat$age),] # only ages 60 and
 # The next two lines make sex variable a character string so the legend is properly formatted
 plotDat2$variable <- deLevel(plotDat2$variable) 
 plotDat2$Sex <- ifelse(plotDat2$variable=='m.mx', 'Male', 'Female')
+# Make the plots
 mxBySexPlot <- ggplot(plotDat2, aes(x=age, y=value, linetype=Sex, colour=Sex)) + geom_line() + ylab(label='Mortality rate m(x)') + xlab(label='Age') + scale_linetype_manual(values=1:2) + scale_color_manual(values=per_coh_colours) # The plot
 writePlotAsTiff(mxBySexPlot, 'fMx by sex USA 2010')  # Save plot to disk
 
 # Figure 3 - US 2010 male-female DMR and CDMR
+# First, set up the data
 usa2010.2$dmr  <- usa2010.2$m.mx-usa2010.2$f.mx # excess male mortality
 usa2010.2$cdmr <- cumsum(usa2010.2$dmr) # cumulative excess male mortality
 plotDat <- melt(usa2010.2[usa2010.2$age <= 60,c('age','dmr','cdmr')], 'age') # Get into long form
@@ -95,7 +106,6 @@ writePlotAsTiff(cmdrPlot, 'cmdr Plot') # Write the plot to disk
 # First, get the srx data into one long form dataset for each country and all years. For both period and cohort fits.
 perPlotDat <- rBindThisList(lapply(perFits, function(x0) x0$srxDat)) # perFullCrossDat[perFullCrossDat$year >= earliestAnalysisYear,]
 cohPlotDat <- rBindThisList(lapply(cohFits, function(x0) x0$srxDat)) # cohFullCrossDat[cohFullCrossDat$year >= earliestAnalysisYear,]
-
 # This function will generate the period or cohort plots
 plotCountries <- function(plotDat, type='Period'){
   plotDat$country <- fullCountryNames[plotDat$country] # Get the full country name
@@ -131,7 +141,9 @@ countriesToPlot <- c('Australia', 'Italy', 'United States', 'Sweden')
 pvcPlot <- ggplot(bigDat[bigDat$Country %in% countriesToPlot,], aes(x=year, y=srx, shape=Type, colour=Type)) + geom_jitter(size=shapeSize) + xlab(label='Year') + ylab(label = 'Sex ratio crossover') + facet_wrap(~Country, scales='fixed') + scale_shape_manual(values=c(1,4)) + scale_color_manual(values=per_coh_colours)
 writePlotAsTiff(pvcPlot, 'Cohort vs Period')
 
-# Descriptive Statistics
+######
+# Tables
+######
 
 # Table 1. Descriptive table for period sex ratio crossovers
 allPerSRX <- perPlotDat # The dataset
