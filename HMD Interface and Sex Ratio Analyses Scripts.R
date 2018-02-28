@@ -14,7 +14,6 @@ library(pbapply) # progress bar for the 'lapply()' function
 # Reads in the HMD codes. Note, these were adapted from the Hyndman's CRAN demography package. My require further updating if HMD has since altered the codes.
 ccodes <- read.csv('./HMD Country Codes.csv', stringsAsFactors = FALSE)
 
-
 # Convenience functions
 # A convenience function to rbind a list using the data.table package, but cast it back into data.frame format.
 rBindThisList <- function(theList){
