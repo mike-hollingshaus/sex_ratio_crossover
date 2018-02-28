@@ -16,7 +16,7 @@ library(data.table)
 library(ggplot2)
 
 # This line of code will load the objects saved in HMD Interface and Sex Ratio Analyses, if required. It is useful to load objects generated from a specific data pull, in case HMD updates the data.
-# load('D:/Current Projects/Mortality Sex Ratio Changes/SRX Objects with Raw HMD Data/PeriodCohortSRXObjects_2018-02-02')
+# load('')
 
 # Plotting preferences to meet journal Demographic Research guidelines (with some personal preferences)
 plotWidth <- 12.46

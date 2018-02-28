@@ -20,16 +20,12 @@
 rm(list=ls())
 
 # Set the working directory to the local repository
-setwd('D:/Current Projects/Mortality Sex Ratio Changes/sex_ratio_crossover')
-personalFolder <- 'D:/Current Projects/Mortality Sex Ratio Changes/SRX Objects with Raw HMD Data/'
-
-# A file on the local hard drive for reading in the author's username/password for HMD. In practice, comment these out, and hardcode the user's username and password with literal strings. 
-hmd.loginFile <- 'C:/Users/u0214256/Documents/Keys/human_mortality_database.csv'  
-hmd.loginData <- trimws(as.character(read.csv(hmd.loginFile, stringsAsFactors = FALSE)[1,]))
+setwd('')
+personalFolder <- ''
 
 # Username and password for HMD. Replace these with the individual user's literal strings.
-hmd.username <- hmd.loginData[1]
-hmd.password <- hmd.loginData[2]
+hmd.username <- ''
+hmd.password <- ''
 
 # Rather than examine all countries, choose only select examples from around the world
 countriesToExamine <- c('USA', 'SWE', 'AUS', 'JPN', 'RUS', 'ITA','CHL')

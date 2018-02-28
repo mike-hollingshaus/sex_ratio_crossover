@@ -3,9 +3,12 @@
 # Kem C. Gardner Policy Institute
 # University of Utah
 # mike.hollingshaus@utah.edu
-# Last update: 2018-02-28
+# Last update: 2018-02-28.
+# As of this date, the package is also publicly available at: https://github.com/mike-hollingshaus/sex_ratio_crossover
 
 # This README file is associated with Sex Ratio Curves and Crosses Analyses for seven developed countries.
+
+
 
 # Files #
 This package includes four .R script files, and one .csv file. 
